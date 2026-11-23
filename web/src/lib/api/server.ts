@@ -1,6 +1,8 @@
 import { cookies, headers } from "next/headers";
 import createClient from "openapi-fetch";
 
+import type { paths } from "./schema";
+
 interface IncomingRequest {
   cookie: string;
   forwardedFor: string | null;
@@ -26,9 +28,9 @@ export function forwardedHeaders(req: IncomingRequest): Record<string, string> {
  * Typed API client for server components. It calls the API directly (API_INTERNAL_URL), forwarding
  * the incoming request's cookie and client details. Authorization still happens in the API.
  */
-export async function createServerClient<Paths extends object>() {
+export async function createServerClient() {
   const [cookieStore, headerStore] = await Promise.all([cookies(), headers()]);
-  return createClient<Paths>({
+  return createClient<paths>({
     baseUrl: `${apiInternalUrl()}/api`,
     headers: forwardedHeaders({
       cookie: cookieStore.toString(),

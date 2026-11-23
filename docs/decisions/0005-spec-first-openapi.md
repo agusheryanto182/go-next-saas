@@ -16,6 +16,14 @@ The web app, end-to-end tests and future clients all consume the API. Backend an
 
 A feature slice starts with a small pull request that changes only the contract.
 
+### Spike result (2026-11-23, issue #5)
+**OpenAPI 3.1 is used.** With `oapi-codegen` v2.8.2 and `kin-openapi` v0.153.0:
+- `type: [string, "null"]` generates `nullable.Nullable[string]`; the validator accepts a string or `null` and rejects other types.
+- Enums, path patterns, query bounds, cookie security, `default` problem responses and the embedded spec all work with the strict `net/http` server.
+- Requests are validated against the spec before handlers run (`nethttp-middleware`); failures become 400 problems naming the field.
+- `oapi-codegen` ignores `-o` when the config sets `output`, so the output path is passed as a flag.
+- `openapi-typescript` 7.13 + `openapi-fetch` 0.17 type paths, parameters, responses and problem errors in the web app.
+
 ## Alternatives considered
 - **Code-first with Huma:** one source of truth in Go and less duplication, but the frontend waits for the backend and contract changes are reviewed through code.
 - **Code-first with Swaggo comments:** the spec drifts from the code because comments are not checked.

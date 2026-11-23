@@ -1,0 +1,235 @@
+openapi: 3.1.0
+info:
+  title: go-next-saas API
+  version: 0.1.0
+  description: |
+    The contract between the Go API, the web app and every other client (ADR 0005).
+    Errors use RFC 9457 problem details. Authenticated endpoints read the session cookie (ADR 0006).
+  license:
+    name: MIT
+    identifier: MIT
+servers:
+  - url: /api
+security:
+  - session: []
+tags:
+  - name: me
+    description: The signed-in user
+  - name: members
+    description: People in an organization
+
+paths:
+  /v1/me:
+    get:
+      operationId: getMe
+      tags: [me]
+      summary: The signed-in user
+      responses:
+        "200":
+          description: The signed-in user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/orgs/{slug}/members:
+    get:
+      operationId: listMembers
+      tags: [members]
+      summary: Members of an organization
+      description: Owners and admins only. Newest first.
+      parameters:
+        - $ref: "#/components/parameters/OrgSlug"
+        - name: search
+          in: query
+          description: Matches name or email, case-insensitive.
+          schema:
+            type: string
+            maxLength: 255
+        - name: role
+          in: query
+          schema:
+            $ref: "#/components/schemas/Role"
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/MembershipStatus"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Size"
+      responses:
+        "200":
+          description: One page of members.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberPage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        default:
+          $ref: "#/components/responses/Error"
+
+components:
+  securitySchemes:
+    session:
+      type: apiKey
+      in: cookie
+      name: __Host-session
+      description: Session cookie set at sign-in (HttpOnly, Secure, SameSite=Lax).
+
+  parameters:
+    OrgSlug:
+      name: slug
+      in: path
+      required: true
+      description: The organization's URL slug.
+      schema:
+        type: string
+        pattern: "^[a-z0-9-]{3,40}$"
+    Page:
+      name: page
+      in: query
+      description: Zero-based page number.
+      schema:
+        type: integer
+        format: int32
+        minimum: 0
+        default: 0
+    Size:
+      name: size
+      in: query
+      description: Items per page.
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        maximum: 100
+        default: 20
+
+  responses:
+    BadRequest:
+      description: The request is invalid. `errors` names the fields at fault.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Unauthorized:
+      description: No valid session.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Forbidden:
+      description: Signed in, but not allowed.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    NotFound:
+      description: The resource does not exist or is not visible to the caller.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Error:
+      description: Any other error.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+
+  schemas:
+    Problem:
+      type: object
+      description: RFC 9457 problem details.
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          description: A URI identifying the problem type; `about:blank` when the status says it all.
+        title:
+          type: string
+          description: The HTTP reason phrase.
+        status:
+          type: integer
+          format: int32
+        detail:
+          type: string
+          description: A human-readable explanation, safe to show to users.
+        errors:
+          type: object
+          description: First error message per request field.
+          additionalProperties:
+            type: string
+
+    Role:
+      type: string
+      enum: [owner, admin, member]
+      description: A member's role in an organization.
+
+    MembershipStatus:
+      type: string
+      enum: [active, deactivated]
+
+    User:
+      type: object
+      required: [id, email, fullName, phone, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        fullName:
+          type: string
+        phone:
+          type: [string, "null"]
+          description: Null when not set.
+        createdAt:
+          type: string
+          format: date-time
+
+    Member:
+      type: object
+      required: [user, role, status, joinedAt]
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        role:
+          $ref: "#/components/schemas/Role"
+        status:
+          $ref: "#/components/schemas/MembershipStatus"
+        joinedAt:
+          type: string
+          format: date-time
+
+    MemberPage:
+      type: object
+      required: [items, page, size, totalItems, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Member"
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalItems:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32

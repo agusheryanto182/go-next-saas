@@ -8,6 +8,7 @@ Files marked **generated** are produced by a tool; change their source and regen
 
 ```
 go-next-saas/
+├─ openapi/              API contract: the source of truth for routes and payloads
 ├─ api/                  Go API (its own module)
 ├─ web/                  Next.js web app
 ├─ docs/                 documentation and decision records
@@ -26,7 +27,17 @@ go-next-saas/
 └─ README.md             overview and getting started
 ```
 
-Coming with later issues: `openapi/` (API contract, #5), `e2e/` (Playwright, #8), `deploy/` (production config, M5).
+Coming with later issues: `e2e/` (Playwright, #8), `deploy/` (production config, M5). `.cache/` holds scratch output of `make check` (gitignored).
+
+## `openapi/` — API contract
+
+| Path | Contents |
+|---|---|
+| `openapi.yaml` | every endpoint, parameter, schema and error (OpenAPI 3.1, ADR 0005) |
+| `redocly.yaml` | spec lint rules (`make check-spec`) |
+| `package.json` | pins the Redocly CLI used for linting |
+
+Changing the contract: edit `openapi.yaml`, run `make gen`, commit the spec and the generated code together (`/spec` skill).
 
 ## `api/` — Go API
 
@@ -41,7 +52,12 @@ api/
 │  ├─ controller/restapi/                HTTP layer
 │  │  ├─ router.go                       routes, /healthz and /readyz, 404/405 as problem details
 │  │  ├─ middleware/                     shared middleware (panic recovery; sessions and CSRF later)
-│  │  └─ problem/                        RFC 9457 error responses
+│  │  ├─ problem/                        RFC 9457 error responses
+│  │  ├─ contract_test.go                responses checked against openapi.yaml
+│  │  └─ v1/                             /api/v1 endpoints
+│  │     ├─ v1.go                        mounts the contract routes with request validation
+│  │     ├─ handler.go                   implements the generated strict server interface
+│  │     └─ gen/                         oapi-codegen config; api.gen.go is **generated**
 │  ├─ entity/                            business models used by every layer
 │  ├─ usecase/contracts.go               use-case interfaces; one sub-folder per domain will follow
 │  └─ repo/contracts.go                  storage and external-service interfaces;
@@ -58,7 +74,7 @@ api/
 └─ go.mod / go.sum                       module and pinned dependencies
 ```
 
-Coming next: `migrations/` and `queries/` (SQL, #6), `internal/repo/persistent/gen/` and `internal/controller/restapi/v1/gen/` (**generated**, #5 and #6).
+Coming next: `migrations/` and `queries/` (SQL, #6), `internal/repo/persistent/gen/` (**generated**, #6).
 
 Tests sit next to the code as `*_test.go`.
 
@@ -78,6 +94,7 @@ web/
 │  ├─ lib/
 │  │  ├─ api/client.ts                   typed API client for the browser (same-origin /api)
 │  │  ├─ api/server.ts                   typed API client for server components (forwards cookie and client IP)
+│  │  ├─ api/schema.d.ts                 API types, **generated** from openapi.yaml (`npm run gen:api`)
 │  │  └─ utils.ts                        `cn` class helper
 │  └─ test/                              Vitest setup and the MSW mock server
 ├─ public/                               static files served as-is (logo)
@@ -91,7 +108,7 @@ web/
 └─ AGENTS.md / CLAUDE.md                 Next.js-managed agent notes plus our web rules
 ```
 
-**Generated:** `next-env.d.ts` and `.next/` (by Next.js, gitignored); `src/lib/api/schema.d.ts` (from the OpenAPI contract, #5).
+**Generated:** `next-env.d.ts` and `.next/` (by Next.js, gitignored); `src/lib/api/schema.d.ts` (from the OpenAPI contract).
 
 Tests sit next to the code as `*.test.ts(x)`.
 
@@ -142,7 +159,8 @@ Run `make help` for the list. Targets for parts not built yet say which issue ad
 | `make fmt` | format Go code |
 | `make check-fast AREAS="api web spec"` | lint and unit tests for the given areas (the stop hook passes only changed ones) |
 | `make check` | everything CI runs except end-to-end tests: all areas, vulnerability scan, web production build |
-| `make gen` | regenerate code from the contract and SQL (#5, #6) |
+| `make gen` | regenerate Go server code and TypeScript types from the contract (SQL code follows in #6) |
+| `make check-spec` | lint the contract and fail if generated code is out of date |
 | `make test-integration` | API tests against a real PostgreSQL (#6) |
 | `make e2e` | full stack + Playwright (#8) |
 | `make seed` | sample organizations and users (M1) |

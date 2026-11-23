@@ -3,6 +3,9 @@
 .env.*
 !.env.example
 
+# Local caches (make check scratch output)
+/.cache/
+
 # Go
 /api/bin/
 *.test

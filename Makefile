@@ -9,7 +9,15 @@ AREAS ?= api web spec
 
 GO_TOOL := go tool -modfile=tools/go.mod
 
-.PHONY: help dev down reset-db gen fmt check check-fast test-integration e2e seed
+# Code generated from openapi/openapi.yaml (ADR 0005). Never edit these by hand.
+OAPI_DIR := api/internal/controller/restapi/v1/gen
+OAPI_GEN := cd $(OAPI_DIR) && go tool -modfile=../../../../../tools/go.mod oapi-codegen -config oapi-codegen.yaml
+SPEC_FROM_OAPI := ../../../../../../openapi/openapi.yaml
+TS_SCHEMA := web/src/lib/api/schema.d.ts
+# Scratch output for the sync check; overwritten on every run, gitignored.
+GEN_CHECK := $(CURDIR)/.cache/gen-check
+
+.PHONY: help dev down reset-db gen fmt check check-fast check-api check-web check-spec test-integration e2e seed
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-18s %s\n", $$1, $$2}'
@@ -25,8 +33,9 @@ reset-db: ## Delete local database data and start again (re-runs role setup)
 	docker compose down -v
 	$(MAKE) dev
 
-gen: ## Regenerate code from the OpenAPI contract and SQL queries
-	@$(call todo,gen,#5 and #6)
+gen: ## Regenerate code from the OpenAPI contract (SQL queries follow in #6)
+	$(OAPI_GEN) -o api.gen.go $(SPEC_FROM_OAPI)
+	cd web && npm run --silent gen:api
 
 fmt: ## Format Go code
 	cd api && $(GO_TOOL) golangci-lint fmt ./...
@@ -35,7 +44,7 @@ check: ## Everything CI runs except end-to-end tests
 	$(MAKE) check-fast AREAS="api web spec"
 	cd api && $(GO_TOOL) govulncheck ./...
 	cd web && npm run --silent build
-	@$(call todo,generated-code sync and migration lint,#5 #6)
+	@$(call todo,migration lint,#6)
 
 check-fast: ## Format, lint and unit tests for AREAS (default: all)
 	@for area in $(AREAS); do $(MAKE) --no-print-directory check-$$area; done
@@ -47,8 +56,15 @@ check-api: ## Lint (incl. format and layer rules) and unit tests for the API
 check-web: ## Lint, typecheck, unit tests and format check for the web app
 	cd web && npm run --silent lint && npm run --silent typecheck && npm test --silent && npm run --silent format:check
 
-check-spec:
-	@$(call todo,spec checks,#5)
+check-spec: ## Lint the OpenAPI contract and verify generated code matches it
+	cd openapi && npm run --silent lint
+	@mkdir -p $(GEN_CHECK)
+	@$(OAPI_GEN) -o $(GEN_CHECK)/api.gen.go $(SPEC_FROM_OAPI)
+	@cd web && npx --no-install openapi-typescript ../openapi/openapi.yaml -o $(GEN_CHECK)/schema.d.ts >/dev/null 2>&1
+	@if ! cmp -s $(GEN_CHECK)/api.gen.go $(OAPI_DIR)/api.gen.go || ! cmp -s $(GEN_CHECK)/schema.d.ts $(TS_SCHEMA); then \
+	  echo "Generated code is out of date with openapi/openapi.yaml: run 'make gen'."; exit 1; \
+	fi
+	@echo "Generated code matches the contract."
 
 test-integration: ## API tests against a real PostgreSQL
 	@$(call todo,integration tests,#6)
