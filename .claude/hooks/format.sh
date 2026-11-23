@@ -9,7 +9,7 @@ root="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel)}"
 
 case "$file" in
   "$root"/api/*.go)
-    (cd "$root/api" && go tool gofumpt -w "$file") >/dev/null 2>&1
+    (cd "$root/api" && go tool -modfile=tools/go.mod gofumpt -w "$file") >/dev/null 2>&1
     ;;
   "$root"/web/*.ts | "$root"/web/*.tsx | "$root"/web/*.css | "$root"/web/*.json)
     prettier="$root/web/node_modules/.bin/prettier"

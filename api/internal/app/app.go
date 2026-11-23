@@ -1,0 +1,50 @@
+// Package app wires the application together (manual dependency injection) and runs it until the
+// context is cancelled, then shuts down gracefully.
+package app
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"log/slog"
+
+	"github.com/agusheryanto182/go-next-saas/api/config"
+	"github.com/agusheryanto182/go-next-saas/api/internal/controller/restapi"
+	"github.com/agusheryanto182/go-next-saas/api/pkg/httpserver"
+	"github.com/agusheryanto182/go-next-saas/api/pkg/otel"
+	"github.com/agusheryanto182/go-next-saas/api/pkg/postgres"
+)
+
+// Run starts the API and blocks until ctx is cancelled or the server fails.
+func Run(ctx context.Context, cfg config.Config, log *slog.Logger) (err error) {
+	shutdownTracing, err := otel.Setup(ctx, "go-next-saas-api", cfg.OTLPEndpoint)
+	if err != nil {
+		return err
+	}
+	defer func() { err = errors.Join(err, shutdownTracing(context.WithoutCancel(ctx))) }()
+
+	pool, err := postgres.New(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+
+	server := httpserver.New(cfg.HTTPAddr, restapi.NewRouter(restapi.Deps{Log: log, DB: pool}))
+	server.Start()
+	log.Info("api started", slog.String("addr", cfg.HTTPAddr))
+
+	select {
+	case <-ctx.Done():
+		log.Info("shutting down")
+	case err := <-server.Notify():
+		return fmt.Errorf("http server: %w", err)
+	}
+
+	shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), cfg.ShutdownTimeout)
+	defer cancel()
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		return fmt.Errorf("http shutdown: %w", err)
+	}
+	log.Info("stopped")
+	return nil
+}
