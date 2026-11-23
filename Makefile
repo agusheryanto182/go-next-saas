@@ -34,6 +34,7 @@ fmt: ## Format Go code
 check: ## Everything CI runs except end-to-end tests
 	$(MAKE) check-fast AREAS="api web spec"
 	cd api && $(GO_TOOL) govulncheck ./...
+	cd web && npm run --silent build
 	@$(call todo,generated-code sync and migration lint,#5 #6)
 
 check-fast: ## Format, lint and unit tests for AREAS (default: all)
@@ -43,8 +44,8 @@ check-api: ## Lint (incl. format and layer rules) and unit tests for the API
 	cd api && $(GO_TOOL) golangci-lint run ./...
 	cd api && go test -race ./...
 
-check-web:
-	@$(call todo,web checks,#7)
+check-web: ## Lint, typecheck, unit tests and format check for the web app
+	cd web && npm run --silent lint && npm run --silent typecheck && npm test --silent && npm run --silent format:check
 
 check-spec:
 	@$(call todo,spec checks,#5)
