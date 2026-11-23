@@ -16,3 +16,7 @@ It continues [employee-portal](https://github.com/agusheryanto182/employee-porta
 ## Status
 
 Milestone 0 (foundation) is in progress. Decisions are recorded in [`docs/decisions`](docs/decisions).
+
+## License
+
+[MIT](LICENSE)
