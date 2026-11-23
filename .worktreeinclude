@@ -1,0 +1,2 @@
+# Gitignored files copied into new agent worktrees, so the local stack works there too.
+.env
