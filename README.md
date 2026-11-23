@@ -13,9 +13,57 @@ It continues [employee-portal](https://github.com/agusheryanto182/employee-porta
 | Data | PostgreSQL with row-level security per organization |
 | Auth | Server-side sessions in an HttpOnly cookie |
 
+## Getting started
+
+**Requirements:** Docker Engine with Compose v2, GNU Make, Go 1.27 (newer toolchains download automatically), Node.js 26, and `jq` (used by the agent hooks).
+
+```bash
+git clone git@github.com:agusheryanto182/go-next-saas.git
+cd go-next-saas
+cp .env.example .env
+```
+
+**Everything in Docker**
+
+```bash
+docker compose --profile app up --build
+```
+
+| What | URL |
+|---|---|
+| Web app | http://localhost:3000 |
+| API health | http://localhost:8080/healthz |
+| Mailpit inbox (local emails) | http://localhost:8025 |
+
+**Day to day: dependencies in Docker, code on your machine**
+
+```bash
+make dev                                              # PostgreSQL + Mailpit
+set -a; . ./.env; set +a                              # load .env into this shell
+(cd api && go run ./cmd/app)                          # API on :8080
+(cd web && npm ci && npm run dev)                     # web on :3000, /api forwarded to the API
+```
+
+If a port is taken (for example by another project's PostgreSQL), change `POSTGRES_PORT`, `MAILPIT_*_PORT`, `API_PORT` or `WEB_PORT` in `.env` and the matching URLs.
+
+**Checks**
+
+```bash
+make check-fast   # lint and unit tests
+make check        # everything CI runs except end-to-end tests
+make help         # all targets
+```
+
+## Documentation
+
+- [Project structure](docs/project-structure.md): what every folder and file is for
+- [Architecture](docs/architecture.md): system, layers, request flow, tenancy
+- [Agentic workflow](docs/agentic-workflow.md): how work goes from issue to merged pull request
+- [Decision records](docs/README.md#decision-records)
+
 ## Status
 
-Milestone 0 (foundation) is in progress. Decisions are recorded in [`docs/decisions`](docs/decisions).
+Milestone 0 (foundation) is in progress.
 
 ## License
 

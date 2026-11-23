@@ -5,6 +5,7 @@ What is being built, how, and why. Docs change in the same pull request as the d
 | Document | Contents |
 |---|---|
 | [architecture.md](architecture.md) | System overview, layers, request flow, tenancy |
+| [project-structure.md](project-structure.md) | What every folder and important file is for, Makefile targets |
 | [agentic-workflow.md](agentic-workflow.md) | How work moves from issue to merged pull request with coding agents |
 | [decisions/](decisions/) | Architecture Decision Records |
 

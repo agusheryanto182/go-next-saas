@@ -46,6 +46,8 @@ Users are global; organizations own data; memberships carry the role (`owner`, `
 
 ## Repository layout
 
+Summary below; every folder and file is described in [project-structure.md](project-structure.md).
+
 ```
 openapi/    contract
 api/        Go module (cmd/app, config, internal/{app,controller,entity,usecase,repo}, pkg, migrations, queries)
