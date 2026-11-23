@@ -1,0 +1,5 @@
+tools/
+**/*_test.go
+.golangci.yml
+AGENTS.md
+CLAUDE.md

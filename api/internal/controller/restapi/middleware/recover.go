@@ -1,0 +1,32 @@
+// Package middleware holds the HTTP middleware shared by every route.
+package middleware
+
+import (
+	"log/slog"
+	"net/http"
+	"runtime/debug"
+
+	"github.com/agusheryanto182/go-next-saas/api/internal/controller/restapi/problem"
+)
+
+// Recover turns a panic in a handler into a logged 500 problem response instead of a dropped connection.
+func Recover(log *slog.Logger) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			defer func() {
+				rec := recover()
+				if rec == nil {
+					return
+				}
+				if rec == http.ErrAbortHandler { //nolint:errorlint // sentinel compared as net/http does
+					panic(rec)
+				}
+				log.ErrorContext(r.Context(), "panic in handler",
+					slog.Any("panic", rec), slog.String("method", r.Method), slog.String("path", r.URL.Path),
+					slog.String("stack", string(debug.Stack())))
+				problem.Write(w, problem.New(http.StatusInternalServerError, "Something went wrong. Please try again."))
+			}()
+			next.ServeHTTP(w, r)
+		})
+	}
+}

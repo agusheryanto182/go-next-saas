@@ -1,0 +1,77 @@
+version: "2"
+
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - contextcheck
+    - depguard
+    - errorlint
+    - gocritic
+    - gosec
+    - misspell
+    - nilerr
+    - noctx
+    - rowserrcheck
+    - sqlclosecheck
+    - unconvert
+    - usestdlibvars
+  settings:
+    # Layer rules from ADR 0003. A violation fails `make check` and CI.
+    depguard:
+      rules:
+        entity:
+          files: ["**/internal/entity/**"]
+          deny:
+            - pkg: github.com/agusheryanto182/go-next-saas/api/internal/usecase
+              desc: entities sit at the centre and import nothing from the application
+            - pkg: github.com/agusheryanto182/go-next-saas/api/internal/repo
+              desc: entities sit at the centre and import nothing from the application
+            - pkg: github.com/agusheryanto182/go-next-saas/api/internal/controller
+              desc: entities sit at the centre and import nothing from the application
+            - pkg: net/http
+              desc: entities know nothing about transport
+            - pkg: github.com/jackc/pgx
+              desc: entities know nothing about storage
+        usecase:
+          files: ["**/internal/usecase/**"]
+          deny:
+            - pkg: github.com/agusheryanto182/go-next-saas/api/internal/controller
+              desc: use cases do not know about HTTP; controllers call use cases
+            - pkg: github.com/agusheryanto182/go-next-saas/api/internal/repo/persistent
+              desc: depend on interfaces in internal/repo (contracts.go), not on implementations
+            - pkg: github.com/agusheryanto182/go-next-saas/api/internal/repo/webapi
+              desc: depend on interfaces in internal/repo (contracts.go), not on implementations
+            - pkg: github.com/agusheryanto182/go-next-saas/api/pkg
+              desc: use cases use only the standard library, entity and contracts
+            - pkg: net/http
+              desc: use cases are transport-agnostic
+            - pkg: github.com/jackc/pgx
+              desc: storage details belong in internal/repo/persistent
+        repo:
+          files: ["**/internal/repo/**"]
+          deny:
+            - pkg: github.com/agusheryanto182/go-next-saas/api/internal/controller
+              desc: repositories never call the HTTP layer
+            - pkg: github.com/agusheryanto182/go-next-saas/api/internal/usecase
+              desc: repositories implement interfaces from internal/repo, they do not call use cases
+        pkg:
+          files: ["**/api/pkg/**"]
+          deny:
+            - pkg: github.com/agusheryanto182/go-next-saas/api/internal
+              desc: pkg/ is generic infrastructure with no application knowledge
+  exclusions:
+    presets:
+      - std-error-handling
+    rules:
+      - path: _test\.go
+        linters: [gosec, noctx]
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/agusheryanto182/go-next-saas

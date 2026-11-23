@@ -7,7 +7,9 @@ SHELL := bash
 # Areas checked by check-fast; the stop hook passes only the areas that changed.
 AREAS ?= api web spec
 
-.PHONY: help dev down reset-db gen check check-fast test-integration e2e seed
+GO_TOOL := go tool -modfile=tools/go.mod
+
+.PHONY: help dev down reset-db gen fmt check check-fast test-integration e2e seed
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-18s %s\n", $$1, $$2}'
@@ -26,15 +28,20 @@ reset-db: ## Delete local database data and start again (re-runs role setup)
 gen: ## Regenerate code from the OpenAPI contract and SQL queries
 	@$(call todo,gen,#5 and #6)
 
+fmt: ## Format Go code
+	cd api && $(GO_TOOL) golangci-lint fmt ./...
+
 check: ## Everything CI runs except end-to-end tests
 	$(MAKE) check-fast AREAS="api web spec"
-	@$(call todo,full check (vuln scan, generated-code sync, migration lint),#4 #5 #6 #7)
+	cd api && $(GO_TOOL) govulncheck ./...
+	@$(call todo,generated-code sync and migration lint,#5 #6)
 
 check-fast: ## Format, lint and unit tests for AREAS (default: all)
 	@for area in $(AREAS); do $(MAKE) --no-print-directory check-$$area; done
 
-check-api:
-	@$(call todo,api checks,#4)
+check-api: ## Lint (incl. format and layer rules) and unit tests for the API
+	cd api && $(GO_TOOL) golangci-lint run ./...
+	cd api && go test -race ./...
 
 check-web:
 	@$(call todo,web checks,#7)
