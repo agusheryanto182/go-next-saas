@@ -16,6 +16,12 @@ Layer direction is enforced by depguard (`.golangci.yml`). Do not add `//nolint:
 - `make check` — adds vulnerability scan
 - Tools are pinned in `api/tools/go.mod`; run them with `go tool -modfile=tools/go.mod <tool>` from `api/`.
 
+## Database (ADR 0008, 0009)
+- Organization data is only read or written inside `persistent.Store.InScope(ctx, repo.Scope{...}, fn)`. Never query the pool directly for tenant tables.
+- New schema = a new migration in `migrations/` (never edit an applied one); start it with `SET LOCAL lock_timeout` and `SET LOCAL statement_timeout`. Every organization-scoped table gets `ENABLE` + `FORCE ROW LEVEL SECURITY` and a policy on `app_org_id()`, plus an isolation test.
+- Queries go in `queries/`; run `make gen`. Never edit `internal/repo/persistent/gen/`.
+- Integration tests use the `integration` build tag; run `make test-integration`.
+
 ## Conventions
 - Errors: return wrapped errors (`fmt.Errorf("...: %w", err)`); handlers turn them into problem details. Never leak internal error text to clients.
 - Context: every function doing I/O takes `ctx context.Context` first.

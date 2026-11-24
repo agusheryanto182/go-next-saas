@@ -10,10 +10,16 @@ import (
 
 	"github.com/agusheryanto182/go-next-saas/api/config"
 	"github.com/agusheryanto182/go-next-saas/api/internal/controller/restapi"
+	"github.com/agusheryanto182/go-next-saas/api/internal/repo/persistent"
 	"github.com/agusheryanto182/go-next-saas/api/pkg/httpserver"
 	"github.com/agusheryanto182/go-next-saas/api/pkg/otel"
 	"github.com/agusheryanto182/go-next-saas/api/pkg/postgres"
 )
+
+// Migrate applies pending database migrations. url must connect as the owner role.
+func Migrate(ctx context.Context, url string, log *slog.Logger) error {
+	return persistent.Migrate(ctx, url, log)
+}
 
 // Run starts the API and blocks until ctx is cancelled or the server fails.
 func Run(ctx context.Context, cfg config.Config, log *slog.Logger) (err error) {

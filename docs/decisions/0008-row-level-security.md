@@ -15,6 +15,16 @@ Each request that touches organization data runs in a transaction that starts wi
 
 Integration tests prove that a query without the setting returns nothing and that one organization cannot read or write another's rows.
 
+### Spike result (2026-11-24, issue #6)
+Proven against PostgreSQL 18.6 with the same role script as development (`dev/postgres-init/01-roles.sh`):
+- The unit of work (`persistent.Store.InScope`) starts each transaction with `set_config('app.user_id', …, true)` and `set_config('app.org_id', …, true)` — `SET LOCAL` with bind parameters. Policies read them through `app_user_id()` / `app_org_id()`, which turn an unset value into `NULL`.
+- Without a scope, the app role sees **0** organizations and memberships.
+- Scoped to one organization, even an explicit query for another organization returns nothing; inserting a row for another organization fails with `42501`.
+- A user scope lists only that user's own memberships across organizations ("my organizations").
+- On a single pooled connection, the settings are gone after commit: nothing leaks to the next request.
+- The app role cannot turn `row_security` off or create tables; with `FORCE`, even the owner role sees no rows without a scope.
+- Consequence of `FORCE`: seeding, bootstrap and the `create-org` CLI write through the unit of work with a scope, like the API, instead of bypassing the policies.
+
 ## Alternatives considered
 - **Application checks only:** simpler, but one forgotten filter is a data leak.
 - **Database per tenant:** strongest isolation, too heavy for many small organizations.
