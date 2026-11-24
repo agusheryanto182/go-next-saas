@@ -1,0 +1,132 @@
+# Runs the same make targets as local development (see Makefile), plus the end-to-end smoke test.
+# Actions are pinned to commit SHAs; the comment names the release.
+name: CI
+
+on:
+  pull_request:
+    # labeled/unlabeled: the api:breaking label changes the outcome of the spec job.
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  NODE_VERSION: "26.13.0"
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  api:
+    name: api
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: api/go.mod
+          cache-dependency-path: |
+            api/go.sum
+            api/tools/go.sum
+      # Squawk (migration lint) runs through npx.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Lint, generated SQL code in sync, migration lint, unit tests
+        run: make check-api
+      - name: Integration tests (PostgreSQL via testcontainers)
+        run: make test-integration
+      - name: Known vulnerabilities
+        run: make vuln
+
+  web:
+    name: web
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+        working-directory: web
+      - name: Lint, typecheck, unit tests, format
+        run: make check-web
+      - name: Production build
+        run: npm run build
+        working-directory: web
+
+  spec:
+    name: spec
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: api/go.mod
+          cache-dependency-path: |
+            api/go.sum
+            api/tools/go.sum
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            openapi/package-lock.json
+            web/package-lock.json
+      - run: npm ci
+        working-directory: openapi
+      # openapi-typescript comes from the web app's dependencies.
+      - run: npm ci
+        working-directory: web
+      - name: Contract lint, generated code in sync
+        run: make check-spec
+      # A breaking change fails the job unless the pull request carries the api:breaking label;
+      # with the label the report is still shown.
+      - name: Breaking changes against the base branch
+        if: github.event_name == 'pull_request'
+        continue-on-error: ${{ contains(github.event.pull_request.labels.*.name, 'api:breaking') }}
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git fetch --no-tags --depth=1 origin "$BASE_REF"
+          make check-breaking BASE="origin/$BASE_REF"
+
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+      - run: npm ci
+        working-directory: e2e
+      - run: npm run typecheck
+        working-directory: e2e
+      - run: npx playwright install --with-deps chromium
+        working-directory: e2e
+      - name: Full stack (Docker Compose) + Playwright
+        run: make e2e
+      - name: Stack logs
+        if: failure()
+        run: docker compose --profile app logs --no-color
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+          retention-days: 7
