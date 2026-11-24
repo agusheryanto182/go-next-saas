@@ -161,7 +161,7 @@ Local-only and gitignored: `settings.local.json`, `worktrees/` (agent view workt
 | `workflows/claude-review.yml` | automatic pull request review with the `code-review` plugin (not a required check) |
 | `dependabot.yml` | weekly grouped dependency updates per ecosystem and directory, 14-day cooldown, `chore(deps)` commits |
 
-The `spec` job fails on a breaking contract change (`make check-breaking`, oasdiff) unless the pull request has the `api:breaking` label; with the label the report is still shown. Breaking is fine while nothing outside this repository uses the API, but it should always be a deliberate choice.
+The `spec` job fails on a breaking contract change (`make check-breaking`, oasdiff) unless the pull request has the `api:breaking` label; with the label the report is still shown. Adding the label does not start a new run: re-run the `spec` job afterwards. Breaking is fine while nothing outside this repository uses the API, but it should always be a deliberate choice.
 
 ## `e2e/` — end-to-end tests
 

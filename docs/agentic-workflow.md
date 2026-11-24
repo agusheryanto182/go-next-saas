@@ -36,7 +36,7 @@ Two workflows run `claude-code-action` with the repository owner's Claude subscr
 
 | Workflow | Trigger | What Claude may do |
 |---|---|---|
-| `claude.yml` | `@claude` in an issue, a pull request comment or a review | edit files, run the `make` checks and `go test`, read issues, pull requests and git history, commit and push to its own branch or the pull request |
+| `claude.yml` | `@claude` in an issue, a pull request comment or a review | edit files, run the `make` checks (including `make check` and `make vuln`) and `go test`, read issues, pull requests and git history, commit and push to its own branch or the pull request |
 | `claude-review.yml` | a pull request opens ready for review, leaves draft, or reopens | review with the official `code-review` plugin and post one comment; read-only otherwise |
 
 Safety settings:
