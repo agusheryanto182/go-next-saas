@@ -1,0 +1,65 @@
+# Level 3 (docs/agentic-workflow.md): mention @claude in an issue, a pull request comment or a review.
+# Only users with write access can start a run (checked by the action); pull requests from forks are skipped.
+name: Claude
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+  issues:
+    types: [opened, assigned]
+
+# One run per issue or pull request at a time; a new mention waits instead of cancelling work in progress.
+concurrency:
+  group: claude-${{ github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  claude:
+    if: |
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
+      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read # read CI results on pull requests
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+      # Toolchains and dependencies, so `make` targets and the stop hook (make check-fast) work.
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: api/go.mod
+          cache-dependency-path: |
+            api/go.sum
+            api/tools/go.sum
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "26.13.0"
+          cache: npm
+          cache-dependency-path: |
+            openapi/package-lock.json
+            web/package-lock.json
+      - run: npm ci --prefix openapi && npm ci --prefix web
+
+      - uses: anthropics/claude-code-action@4fa93a88de49bbef68b10eb15aabedf28ca0e1ed # v1.0.271
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Logs of a public repository are public: never print Claude's full transcript.
+          show_full_output: false
+          # acceptEdits + an explicit allow list: edits in the workspace, the repository's make targets,
+          # read-only gh and git; anything else is denied (no one is there to approve it).
+          claude_args: |
+            --permission-mode acceptEdits
+            --max-turns 30
+            --allowedTools "Bash(make gen),Bash(make check-fast:*),Bash(make check-api),Bash(make check-web),Bash(make check-spec),Bash(make test-integration),Bash(go test:*),Bash(go build:*),Bash(go mod tidy),Bash(gh issue view:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr checks:*),Bash(git status),Bash(git diff:*),Bash(git log:*)"

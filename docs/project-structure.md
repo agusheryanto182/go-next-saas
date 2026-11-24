@@ -15,7 +15,7 @@ go-next-saas/
 ├─ dev/                  files used only by the local development stack
 ├─ .claude/              Claude Code rules, roles, skills and hooks
 ├─ e2e/                  Playwright end-to-end tests against the full Docker Compose stack
-├─ .github/              CI workflow, issue and pull request templates
+├─ .github/              CI and Claude workflows, issue and pull request templates
 ├─ AGENTS.md             rules for every coding agent (any tool)
 ├─ CLAUDE.md             Claude Code entry point; imports AGENTS.md
 ├─ Makefile              one entry point for people, agents and CI
@@ -157,6 +157,8 @@ Local-only and gitignored: `settings.local.json`, `worktrees/` (agent view workt
 | `ISSUE_TEMPLATE/task.md` | spec, acceptance criteria, out of scope, `depends_on` / `parallel` / `conflicts_with` |
 | `pull_request_template.md` | linked issue, what changed, how it was tested, metrics |
 | `workflows/ci.yml` | CI on every pull request and push to `main`: jobs `api`, `web`, `spec`, `e2e` (required to merge). Each job runs the same `make` targets as local development. |
+| `workflows/claude.yml` | `@claude` in issues and pull requests (Level 3, see `docs/agentic-workflow.md`) |
+| `workflows/claude-review.yml` | automatic pull request review with the `code-review` plugin (not a required check) |
 
 The `spec` job fails on a breaking contract change (`make check-breaking`, oasdiff) unless the pull request has the `api:breaking` label; with the label the report is still shown. Breaking is fine while nothing outside this repository uses the API, but it should always be a deliberate choice.
 

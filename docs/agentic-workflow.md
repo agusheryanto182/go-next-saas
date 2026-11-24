@@ -30,6 +30,27 @@ How work moves from an idea to a merged pull request when most code is written b
 - **Removing sessions:** use `claude rm <id>`, which keeps worktrees with unpushed work. Deleting a session in agent view with `Ctrl+X` twice also deletes its worktree, including uncommitted changes.
 - **Issues from outside contributors** are read by a human before anyone mentions `@claude` on them, because issue text reaches the model.
 
+## Level 3 on GitHub
+
+Two workflows run `claude-code-action` with the repository owner's Claude subscription (secret `CLAUDE_CODE_OAUTH_TOKEN`, created with `claude setup-token`; the Claude GitHub App must be installed on the repository).
+
+| Workflow | Trigger | What Claude may do |
+|---|---|---|
+| `claude.yml` | `@claude` in an issue, a pull request comment or a review | edit files, run the `make` checks and `go test`, read issues, pull requests and git history, commit and push to its own branch or the pull request |
+| `claude-review.yml` | a pull request opens ready for review, leaves draft, or reopens | review with the official `code-review` plugin and post one comment; read-only otherwise |
+
+Safety settings:
+- Only users with write access start a run; pull requests from forks are skipped (action defaults, not overridden).
+- `--permission-mode acceptEdits` with an explicit `--allowedTools` list: anything not on the list is denied, because nobody is there to approve it. The review runs in `default` mode with only the plugin's tools.
+- `--max-turns 30` and job timeouts bound usage; one run per issue or pull request at a time.
+- `show_full_output: false`: logs of a public repository are public, so Claude's transcript is never printed.
+- Claude's configuration (`.claude/`, `CLAUDE.md`, `AGENTS.md`) comes from the base branch on pull requests, so a pull request cannot change the rules it is checked against.
+
+Usage notes:
+- The review runs once per pull request to save quota; comment `@claude review` for another pass after larger changes.
+- Small, well-specified issues only: `@claude` on an issue implements it and opens a pull request that goes through the same CI and review as any other.
+- A run uses the same subscription limits as local sessions; skip `@claude` when the quota is needed for agent view.
+
 ## Roles
 
 | Agent | Writes to | Purpose |
