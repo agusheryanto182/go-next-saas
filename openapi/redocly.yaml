@@ -1,0 +1,9 @@
+# Spec lint rules (ADR 0005). `recommended` plus stricter checks that keep the contract usable for generators.
+extends:
+  - recommended
+rules:
+  operation-operationId: error
+  operation-4xx-response: error
+  info-license-strict: error
+  no-unused-components: error
+  security-defined: error

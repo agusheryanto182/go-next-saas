@@ -13,6 +13,7 @@ import (
 
 	"github.com/agusheryanto182/go-next-saas/api/internal/controller/restapi/middleware"
 	"github.com/agusheryanto182/go-next-saas/api/internal/controller/restapi/problem"
+	v1 "github.com/agusheryanto182/go-next-saas/api/internal/controller/restapi/v1"
 )
 
 // Pinger reports whether a dependency (the database) is reachable.
@@ -26,9 +27,12 @@ type Deps struct {
 	DB  Pinger
 }
 
-// NewRouter builds the complete HTTP handler.
-func NewRouter(d Deps) http.Handler {
+// NewRouter builds the complete HTTP handler: health probes plus every route in the OpenAPI contract.
+func NewRouter(d Deps) (http.Handler, error) {
 	mux := http.NewServeMux()
+	if err := v1.Mount(mux, d.Log); err != nil {
+		return nil, err
+	}
 
 	// Liveness: the process is up. Readiness: it can serve traffic (the database answers).
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
@@ -49,7 +53,7 @@ func NewRouter(d Deps) http.Handler {
 	h = middleware.Recover(d.Log)(h)
 	h = otelhttp.NewHandler(h, "api",
 		otelhttp.WithFilter(func(r *http.Request) bool { return r.URL.Path != "/healthz" && r.URL.Path != "/readyz" }))
-	return h
+	return h, nil
 }
 
 // problemOnNoRoute keeps ServeMux's 404 and 405 decisions (including the Allow header)

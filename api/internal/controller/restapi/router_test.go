@@ -18,11 +18,29 @@ type fakeDB struct{ err error }
 
 func (f fakeDB) Ping(context.Context) error { return f.err }
 
+func newRouter(t *testing.T, db fakeDB) http.Handler {
+	t.Helper()
+	h, err := NewRouter(Deps{Log: slog.New(slog.DiscardHandler), DB: db})
+	if err != nil {
+		t.Fatalf("NewRouter: %v", err)
+	}
+	return h
+}
+
 func serve(t *testing.T, h http.Handler, method, path string) *httptest.ResponseRecorder {
 	t.Helper()
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), method, path, nil))
 	return rec
+}
+
+// decodeProblemKeepBody decodes without consuming the recorder body, so it can be validated afterwards.
+func decodeProblemKeepBody(t *testing.T, rec *httptest.ResponseRecorder) problem.Problem {
+	t.Helper()
+	copyRec := httptest.NewRecorder()
+	copyRec.Header().Set("Content-Type", rec.Header().Get("Content-Type"))
+	copyRec.Body.Write(rec.Body.Bytes())
+	return decodeProblem(t, copyRec)
 }
 
 func decodeProblem(t *testing.T, rec *httptest.ResponseRecorder) problem.Problem {
@@ -38,7 +56,6 @@ func decodeProblem(t *testing.T, rec *httptest.ResponseRecorder) problem.Problem
 }
 
 func TestHealthAndReadiness(t *testing.T) {
-	log := slog.New(slog.DiscardHandler)
 	tests := []struct {
 		name       string
 		db         fakeDB
@@ -51,7 +68,7 @@ func TestHealthAndReadiness(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rec := serve(t, NewRouter(Deps{Log: log, DB: tt.db}), http.MethodGet, tt.path)
+			rec := serve(t, newRouter(t, tt.db), http.MethodGet, tt.path)
 			if rec.Code != tt.wantStatus {
 				t.Fatalf("status = %d, want %d", rec.Code, tt.wantStatus)
 			}
@@ -65,7 +82,7 @@ func TestHealthAndReadiness(t *testing.T) {
 }
 
 func TestUnknownRouteIsProblem(t *testing.T) {
-	rec := serve(t, NewRouter(Deps{Log: slog.New(slog.DiscardHandler), DB: fakeDB{}}), http.MethodGet, "/nope")
+	rec := serve(t, newRouter(t, fakeDB{}), http.MethodGet, "/nope")
 
 	if p := decodeProblem(t, rec); rec.Code != http.StatusNotFound || p.Status != http.StatusNotFound {
 		t.Errorf("status = %d, problem = %+v", rec.Code, p)
@@ -73,7 +90,7 @@ func TestUnknownRouteIsProblem(t *testing.T) {
 }
 
 func TestWrongMethodIsRejected(t *testing.T) {
-	rec := serve(t, NewRouter(Deps{Log: slog.New(slog.DiscardHandler), DB: fakeDB{}}), http.MethodPost, "/healthz")
+	rec := serve(t, newRouter(t, fakeDB{}), http.MethodPost, "/healthz")
 
 	if p := decodeProblem(t, rec); rec.Code != http.StatusMethodNotAllowed || p.Status != http.StatusMethodNotAllowed {
 		t.Errorf("status = %d, problem = %+v", rec.Code, p)

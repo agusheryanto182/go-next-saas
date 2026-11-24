@@ -29,7 +29,11 @@ func Run(ctx context.Context, cfg config.Config, log *slog.Logger) (err error) {
 	}
 	defer pool.Close()
 
-	server := httpserver.New(cfg.HTTPAddr, restapi.NewRouter(restapi.Deps{Log: log, DB: pool}))
+	router, err := restapi.NewRouter(restapi.Deps{Log: log, DB: pool})
+	if err != nil {
+		return err
+	}
+	server := httpserver.New(cfg.HTTPAddr, router)
 	server.Start()
 	log.Info("api started", slog.String("addr", cfg.HTTPAddr))
 

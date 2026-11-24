@@ -13,7 +13,7 @@ How work moves from an idea to a merged pull request when most code is written b
 ## From issue to merge
 
 1. **Spec.** Every piece of work is a GitHub issue from the task template: spec, acceptance criteria, area, and `depends_on` / `parallel` / `conflicts_with`. Issues that an agent can finish alone get the `agent-ready` label.
-2. **Contract first.** If the API changes, a small pull request updates `openapi/openapi.yaml` (`/spec`). It is reviewed and merged before implementation.
+2. **Contract and backend together.** If the API changes, one pull request updates `openapi/openapi.yaml` (`/spec`), regenerates code and implements the endpoint with contract and integration tests. The contract is merged only once it is proven implementable (ADR 0005). Web work follows in its own pull request; it may start early against MSW mocks from the spec on the backend branch.
 3. **Dispatch.** In agent view, start one background session per issue with `/slice <issue>`. Each session works in its own worktree under `.claude/worktrees/` and ends with a draft pull request that says `Closes #n`.
 4. **Verify.** Agents run `/verify` (`make check`) before finishing. A hook runs fast checks when an agent stops.
 5. **Review.** The `reviewer` agent and the Claude review workflow comment first; then the developer reviews.
