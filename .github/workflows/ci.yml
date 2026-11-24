@@ -4,8 +4,9 @@ name: CI
 
 on:
   pull_request:
-    # labeled/unlabeled: the api:breaking label changes the outcome of the spec job.
-    types: [opened, synchronize, reopened, labeled, unlabeled]
+    # No labeled/unlabeled: a pull request created with labels fires several events in the same second,
+    # and the concurrency group can then cancel the newest run, which leaves required checks blocked.
+    types: [opened, synchronize, reopened]
   push:
     branches: [main]
 
@@ -67,6 +68,9 @@ jobs:
     name: spec
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: read # labels, for the breaking-change step
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -90,15 +94,22 @@ jobs:
       - name: Contract lint, generated code in sync
         run: make check-spec
       # A breaking change fails the job unless the pull request carries the api:breaking label;
-      # with the label the report is still shown.
+      # with the label the report is still shown. Labels are read when the step runs (not from the
+      # event), so after adding the label, re-run this job.
       - name: Breaking changes against the base branch
         if: github.event_name == 'pull_request'
-        continue-on-error: ${{ contains(github.event.pull_request.labels.*.name, 'api:breaking') }}
         env:
           BASE_REF: ${{ github.base_ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           git fetch --no-tags --depth=1 origin "$BASE_REF"
-          make check-breaking BASE="origin/$BASE_REF"
+          if gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json labels --jq '.labels[].name' | grep -qx 'api:breaking'; then
+            echo "::notice::api:breaking label present: breaking changes are reported, not enforced."
+            make check-breaking BASE="origin/$BASE_REF" || true
+          else
+            make check-breaking BASE="origin/$BASE_REF"
+          fi
 
   e2e:
     name: e2e

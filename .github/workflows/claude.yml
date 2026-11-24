@@ -62,4 +62,4 @@ jobs:
           claude_args: |
             --permission-mode acceptEdits
             --max-turns 30
-            --allowedTools "Bash(make gen),Bash(make check-fast:*),Bash(make check-api),Bash(make check-web),Bash(make check-spec),Bash(make test-integration),Bash(go test:*),Bash(go build:*),Bash(go mod tidy),Bash(gh issue view:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr checks:*),Bash(git status),Bash(git diff:*),Bash(git log:*)"
+            --allowedTools "Bash(make gen),Bash(make check),Bash(make vuln),Bash(make check-fast:*),Bash(make check-api),Bash(make check-web),Bash(make check-spec),Bash(make test-integration),Bash(go test:*),Bash(go build:*),Bash(go mod tidy),Bash(gh issue view:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr checks:*),Bash(git status),Bash(git diff:*),Bash(git log:*)"
