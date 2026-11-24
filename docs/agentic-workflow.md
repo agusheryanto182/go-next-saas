@@ -17,7 +17,7 @@ How work moves from an idea to a merged pull request when most code is written b
 3. **Dispatch.** In agent view, start one background session per issue with `/slice <issue>`. Each session works in its own worktree under `.claude/worktrees/` and ends with a draft pull request that says `Closes #n`.
 4. **Verify.** Agents run `/verify` (`make check`) before finishing. A hook runs fast checks when an agent stops.
 5. **Review.** The `reviewer` agent and the Claude review workflow comment first; then the developer reviews.
-6. **Merge.** Squash merge when CI is green. `main` is protected: pull requests only, linear history.
+6. **Merge.** Squash merge when CI is green. `main` is protected: pull requests only, linear history, and the CI jobs `api`, `web`, `spec` and `e2e` must pass. A breaking contract change needs the `api:breaking` label.
 
 ## Rules
 

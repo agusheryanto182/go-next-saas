@@ -14,7 +14,8 @@ go-next-saas/
 ├─ docs/                 documentation and decision records
 ├─ dev/                  files used only by the local development stack
 ├─ .claude/              Claude Code rules, roles, skills and hooks
-├─ .github/              issue and pull request templates (CI workflows arrive with #8)
+├─ e2e/                  Playwright end-to-end tests against the full Docker Compose stack
+├─ .github/              CI workflow, issue and pull request templates
 ├─ AGENTS.md             rules for every coding agent (any tool)
 ├─ CLAUDE.md             Claude Code entry point; imports AGENTS.md
 ├─ Makefile              one entry point for people, agents and CI
@@ -27,7 +28,7 @@ go-next-saas/
 └─ README.md             overview and getting started
 ```
 
-Coming with later issues: `e2e/` (Playwright, #8), `deploy/` (production config, M5). `.cache/` holds scratch output of `make check` (gitignored).
+`.gitattributes` marks generated code so GitHub collapses it in pull request diffs. Coming with later issues: `deploy/` (production config, M5). `.cache/` holds scratch output of `make check` (gitignored).
 
 ## `openapi/` — API contract
 
@@ -155,6 +156,19 @@ Local-only and gitignored: `settings.local.json`, `worktrees/` (agent view workt
 |---|---|
 | `ISSUE_TEMPLATE/task.md` | spec, acceptance criteria, out of scope, `depends_on` / `parallel` / `conflicts_with` |
 | `pull_request_template.md` | linked issue, what changed, how it was tested, metrics |
+| `workflows/ci.yml` | CI on every pull request and push to `main`: jobs `api`, `web`, `spec`, `e2e` (required to merge). Each job runs the same `make` targets as local development. |
+
+The `spec` job fails on a breaking contract change (`make check-breaking`, oasdiff) unless the pull request has the `api:breaking` label; with the label the report is still shown. Breaking is fine while nothing outside this repository uses the API, but it should always be a deliberate choice.
+
+## `e2e/` — end-to-end tests
+
+| Path | Contents |
+|---|---|
+| `playwright.config.ts` | desktop and mobile (Pixel 7) projects; `E2E_BASE_URL` (web) and `E2E_API_URL` (API), which `make e2e` reads from the running stack |
+| `tests/smoke.spec.ts` | the stack starts and its parts are wired together; replaced by user journeys from M1 |
+| `package.json` | pins Playwright; `npm run typecheck` |
+
+Setup once: `cd e2e && npm ci && npx playwright install chromium`. Then `make e2e` builds and starts the `app` profile and runs the tests; the stack keeps running until `make down`.
 
 ## Makefile targets
 
@@ -172,5 +186,7 @@ Run `make help` for the list. Targets for parts not built yet say which issue ad
 | `make gen` | regenerate Go server code and TypeScript types from the contract, and Go query code from SQL |
 | `make check-spec` | lint the contract and fail if generated code is out of date |
 | `make test-integration` | API tests against a real PostgreSQL in Docker (testcontainers) |
-| `make e2e` | full stack + Playwright (#8) |
+| `make check-breaking BASE=origin/main` | fail on contract changes that break existing clients (oasdiff), compared to `BASE` |
+| `make vuln` | known vulnerabilities in the API and its dependencies (govulncheck) |
+| `make e2e` | build and start the full stack, then run Playwright |
 | `make seed` | sample organizations and users (M1) |

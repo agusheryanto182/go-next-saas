@@ -1,0 +1,4 @@
+# Generated code (make gen): collapsed in GitHub diffs and left out of language stats.
+api/internal/controller/restapi/v1/gen/api.gen.go linguist-generated=true
+api/internal/repo/persistent/gen/*.go linguist-generated=true
+web/src/lib/api/schema.d.ts linguist-generated=true

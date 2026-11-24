@@ -1,0 +1,18 @@
+{
+  "name": "go-next-saas-e2e",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "typecheck": "tsc --noEmit",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.0",
+    "@types/node": "26.6.6",
+    "typescript": "5.9.3"
+  },
+  "engines": {
+    "node": ">=26"
+  }
+}

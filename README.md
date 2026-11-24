@@ -51,6 +51,7 @@ If a port is taken (for example by another project's PostgreSQL), change `POSTGR
 ```bash
 make check-fast   # lint and unit tests
 make check        # everything CI runs except end-to-end tests
+make e2e          # full stack + Playwright (once: cd e2e && npm ci && npx playwright install chromium)
 make help         # all targets
 ```
 
