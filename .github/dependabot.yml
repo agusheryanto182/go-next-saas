@@ -69,6 +69,11 @@ updates:
       npm-web:
         patterns:
           - "*"
+    ignore:
+      # TypeScript 7 cannot load Next.js's TypeScript plugin, and openapi-typescript and
+      # eslint-config-next still require TypeScript 5. Lift this when they support 7.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
     labels:
       - "area:infra"
       - "type:chore"
@@ -105,6 +110,10 @@ updates:
       npm-e2e:
         patterns:
           - "*"
+    ignore:
+      # Same TypeScript major as web/ (see above), so the repository uses one compiler version.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
     labels:
       - "area:infra"
       - "type:chore"

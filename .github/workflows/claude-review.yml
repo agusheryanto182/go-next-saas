@@ -15,7 +15,9 @@ concurrency:
 
 jobs:
   review:
-    if: ${{ !github.event.pull_request.draft }}
+    # Dependency bumps from Dependabot are covered by CI; bots cannot start the action anyway,
+    # and Dependabot runs do not get repository secrets.
+    if: ${{ !github.event.pull_request.draft && github.event.pull_request.user.login != 'dependabot[bot]' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
