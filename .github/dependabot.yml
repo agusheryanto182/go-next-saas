@@ -1,0 +1,166 @@
+# Dependency updates (AGENTS.md rule 10): weekly, one grouped pull request per
+# ecosystem and directory. Cooldown delays new releases by 14 days; security
+# updates are not delayed by cooldown.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      timezone: "Asia/Jakarta"
+    cooldown:
+      default-days: 14
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    labels:
+      - "area:infra"
+      - "type:chore"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "gomod"
+    directory: "/api"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      timezone: "Asia/Jakarta"
+    cooldown:
+      default-days: 14
+    groups:
+      gomod-api:
+        patterns:
+          - "*"
+    labels:
+      - "area:infra"
+      - "type:chore"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "gomod"
+    directory: "/api/tools"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      timezone: "Asia/Jakarta"
+    cooldown:
+      default-days: 14
+    groups:
+      gomod-api-tools:
+        patterns:
+          - "*"
+    labels:
+      - "area:infra"
+      - "type:chore"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "npm"
+    directory: "/web"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      timezone: "Asia/Jakarta"
+    cooldown:
+      default-days: 14
+    groups:
+      npm-web:
+        patterns:
+          - "*"
+    labels:
+      - "area:infra"
+      - "type:chore"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "npm"
+    directory: "/openapi"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      timezone: "Asia/Jakarta"
+    cooldown:
+      default-days: 14
+    groups:
+      npm-openapi:
+        patterns:
+          - "*"
+    labels:
+      - "area:infra"
+      - "type:chore"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "npm"
+    directory: "/e2e"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      timezone: "Asia/Jakarta"
+    cooldown:
+      default-days: 14
+    groups:
+      npm-e2e:
+        patterns:
+          - "*"
+    labels:
+      - "area:infra"
+      - "type:chore"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "docker"
+    directory: "/api"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      timezone: "Asia/Jakarta"
+    cooldown:
+      default-days: 14
+    groups:
+      docker-api:
+        patterns:
+          - "*"
+    labels:
+      - "area:infra"
+      - "type:chore"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "docker"
+    directory: "/web"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      timezone: "Asia/Jakarta"
+    cooldown:
+      default-days: 14
+    groups:
+      docker-web:
+        patterns:
+          - "*"
+    labels:
+      - "area:infra"
+      - "type:chore"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "docker-compose"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      timezone: "Asia/Jakarta"
+    cooldown:
+      default-days: 14
+    groups:
+      docker-compose:
+        patterns:
+          - "*"
+    labels:
+      - "area:infra"
+      - "type:chore"
+    commit-message:
+      prefix: "chore(deps)"

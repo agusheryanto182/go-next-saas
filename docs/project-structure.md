@@ -159,6 +159,7 @@ Local-only and gitignored: `settings.local.json`, `worktrees/` (agent view workt
 | `workflows/ci.yml` | CI on every pull request and push to `main`: jobs `api`, `web`, `spec`, `e2e` (required to merge). Each job runs the same `make` targets as local development. |
 | `workflows/claude.yml` | `@claude` in issues and pull requests (Level 3, see `docs/agentic-workflow.md`) |
 | `workflows/claude-review.yml` | automatic pull request review with the `code-review` plugin (not a required check) |
+| `dependabot.yml` | weekly grouped dependency updates per ecosystem and directory, 14-day cooldown, `chore(deps)` commits |
 
 The `spec` job fails on a breaking contract change (`make check-breaking`, oasdiff) unless the pull request has the `api:breaking` label; with the label the report is still shown. Breaking is fine while nothing outside this repository uses the API, but it should always be a deliberate choice.
 
