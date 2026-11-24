@@ -18,7 +18,7 @@ go-next-saas/
 ├─ AGENTS.md             rules for every coding agent (any tool)
 ├─ CLAUDE.md             Claude Code entry point; imports AGENTS.md
 ├─ Makefile              one entry point for people, agents and CI
-├─ compose.yml           local stack: PostgreSQL, Mailpit; profile `app` adds the API and web app
+├─ compose.yml           local stack: PostgreSQL, Mailpit; profile `app` adds migrate (one-shot), the API and web app
 ├─ .env.example          every environment variable, with local defaults; copy to `.env`
 ├─ .worktreeinclude      gitignored files copied into agent worktrees (`.env`)
 ├─ .editorconfig         indentation and line endings for all editors
@@ -45,7 +45,7 @@ Clean architecture with the [go-clean-template](https://github.com/evrone/go-cle
 
 ```
 api/
-├─ cmd/app/main.go                       entry point: load config, start the app; `-healthcheck` for containers
+├─ cmd/app/main.go                       entry point: serve; `-migrate` applies migrations; `-healthcheck` for containers
 ├─ config/config.go                      environment variables → validated Config
 ├─ internal/
 │  ├─ app/app.go                         wiring (manual dependency injection), start-up and graceful shutdown
@@ -60,23 +60,32 @@ api/
 │  │     └─ gen/                         oapi-codegen config; api.gen.go is **generated**
 │  ├─ entity/                            business models used by every layer
 │  ├─ usecase/contracts.go               use-case interfaces; one sub-folder per domain will follow
-│  └─ repo/contracts.go                  storage and external-service interfaces;
-│                                        persistent/ (PostgreSQL) and webapi/ (SMTP) will follow
+│  └─ repo/
+│     ├─ contracts.go                    storage and external-service interfaces; `Scope` (user and organization of a unit of work)
+│     └─ persistent/                     PostgreSQL
+│        ├─ store.go                     unit of work: transaction + transaction-local scope for row-level security
+│        ├─ migrate.go                   applies the embedded migrations with goose
+│        ├─ store_integration_test.go    real PostgreSQL: migrations round trip, tenant isolation
+│        └─ gen/                         **generated** by sqlc from queries/ and migrations/
 ├─ pkg/                                  generic infrastructure, no application imports
 │  ├─ httpserver/                        http.Server with timeouts and shutdown
 │  ├─ logger/                            slog JSON logger with trace IDs
 │  ├─ otel/                              OpenTelemetry setup
-│  └─ postgres/                          pgx connection pool
-├─ tools/go.mod                          pinned dev tools: golangci-lint, gofumpt, govulncheck
+│  └─ postgres/                          pgx connection pool with query tracing
+├─ migrations/                           goose SQL migrations (embedded into the binary by embed.go)
+├─ queries/                              SQL queries for sqlc, one file per domain
+├─ sqlc.yaml                             sqlc settings: schema from migrations/, output to repo/persistent/gen
+├─ .squawk.toml                          migration lint settings
+├─ tools/go.mod                          pinned dev tools: golangci-lint, gofumpt, govulncheck, oapi-codegen, sqlc
 ├─ .golangci.yml                         lint rules, including the layer rules (depguard)
 ├─ Dockerfile                            multi-stage build → distroless, non-root image
 ├─ AGENTS.md / CLAUDE.md                 API rules for agents
 └─ go.mod / go.sum                       module and pinned dependencies
 ```
 
-Coming next: `migrations/` and `queries/` (SQL, #6), `internal/repo/persistent/gen/` (**generated**, #6).
+Tests sit next to the code as `*_test.go`. Tests that need a real PostgreSQL carry the `integration` build tag and start a container with testcontainers (`make test-integration`).
 
-Tests sit next to the code as `*_test.go`.
+Changing the database: add a new file in `migrations/` (never edit an applied one), add or change queries in `queries/`, run `make gen`, and `make migrate` locally. Every migration starts with `SET LOCAL lock_timeout` and `SET LOCAL statement_timeout`; Squawk exceptions need a `-- squawk-ignore <rule>` line with a reason.
 
 ## `web/` — Next.js app
 
@@ -156,11 +165,12 @@ Run `make help` for the list. Targets for parts not built yet say which issue ad
 | `make dev` | start PostgreSQL and Mailpit |
 | `make down` | stop the stack, keep data |
 | `make reset-db` | delete local database data and recreate the roles |
+| `make migrate` | apply pending migrations as the owner role (`MIGRATION_DATABASE_URL`) |
 | `make fmt` | format Go code |
 | `make check-fast AREAS="api web spec"` | lint and unit tests for the given areas (the stop hook passes only changed ones) |
 | `make check` | everything CI runs except end-to-end tests: all areas, vulnerability scan, web production build |
-| `make gen` | regenerate Go server code and TypeScript types from the contract (SQL code follows in #6) |
+| `make gen` | regenerate Go server code and TypeScript types from the contract, and Go query code from SQL |
 | `make check-spec` | lint the contract and fail if generated code is out of date |
-| `make test-integration` | API tests against a real PostgreSQL (#6) |
+| `make test-integration` | API tests against a real PostgreSQL in Docker (testcontainers) |
 | `make e2e` | full stack + Playwright (#8) |
 | `make seed` | sample organizations and users (M1) |

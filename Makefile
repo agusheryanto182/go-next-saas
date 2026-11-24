@@ -16,8 +16,10 @@ SPEC_FROM_OAPI := ../../../../../../openapi/openapi.yaml
 TS_SCHEMA := web/src/lib/api/schema.d.ts
 # Scratch output for the sync check; overwritten on every run, gitignored.
 GEN_CHECK := $(CURDIR)/.cache/gen-check
+# Migration linter (ADR 0009), run through npx at a pinned version.
+SQUAWK := npx --yes squawk-cli@2.72.0
 
-.PHONY: help dev down reset-db gen fmt check check-fast check-api check-web check-spec test-integration e2e seed
+.PHONY: help dev down reset-db migrate gen fmt check check-fast check-api check-web check-spec test-integration e2e seed
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-18s %s\n", $$1, $$2}'
@@ -33,9 +35,13 @@ reset-db: ## Delete local database data and start again (re-runs role setup)
 	docker compose down -v
 	$(MAKE) dev
 
-gen: ## Regenerate code from the OpenAPI contract (SQL queries follow in #6)
+migrate: ## Apply pending migrations as the owner role (needs MIGRATION_DATABASE_URL, e.g. from .env)
+	cd api && go run ./cmd/app -migrate
+
+gen: ## Regenerate code from the OpenAPI contract and the SQL queries
 	$(OAPI_GEN) -o api.gen.go $(SPEC_FROM_OAPI)
 	cd web && npm run --silent gen:api
+	cd api && $(GO_TOOL) sqlc generate
 
 fmt: ## Format Go code
 	cd api && $(GO_TOOL) golangci-lint fmt ./...
@@ -44,13 +50,14 @@ check: ## Everything CI runs except end-to-end tests
 	$(MAKE) check-fast AREAS="api web spec"
 	cd api && $(GO_TOOL) govulncheck ./...
 	cd web && npm run --silent build
-	@$(call todo,migration lint,#6)
 
 check-fast: ## Format, lint and unit tests for AREAS (default: all)
 	@for area in $(AREAS); do $(MAKE) --no-print-directory check-$$area; done
 
-check-api: ## Lint (incl. format and layer rules) and unit tests for the API
+check-api: ## Lint (incl. format and layer rules), SQL code in sync, migration lint, unit tests
 	cd api && $(GO_TOOL) golangci-lint run ./...
+	cd api && $(GO_TOOL) sqlc diff || { echo "Generated SQL code is out of date with api/queries or api/migrations: run 'make gen'."; exit 1; }
+	cd api && $(SQUAWK) -c .squawk.toml migrations/*.sql
 	cd api && go test -race ./...
 
 check-web: ## Lint, typecheck, unit tests and format check for the web app
@@ -66,8 +73,8 @@ check-spec: ## Lint the OpenAPI contract and verify generated code matches it
 	fi
 	@echo "Generated code matches the contract."
 
-test-integration: ## API tests against a real PostgreSQL
-	@$(call todo,integration tests,#6)
+test-integration: ## API tests against a real PostgreSQL (Docker; testcontainers)
+	cd api && go test -tags integration -race ./...
 
 e2e: ## Full stack + Playwright
 	@$(call todo,end-to-end tests,#8)

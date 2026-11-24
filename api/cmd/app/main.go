@@ -1,6 +1,7 @@
 // Command app runs the API.
 //
 //	app               serve HTTP (configuration from the environment, see .env.example)
+//	app -migrate      apply pending database migrations as the owner role (MIGRATION_DATABASE_URL), then exit
 //	app -healthcheck  exit 0 if the local server answers /healthz (for container health checks)
 package main
 
@@ -24,12 +25,35 @@ import (
 
 func main() {
 	healthcheck := flag.Bool("healthcheck", false, "check the local server's /healthz and exit")
+	migrate := flag.Bool("migrate", false, "apply pending migrations using MIGRATION_DATABASE_URL and exit")
 	flag.Parse()
 
-	if *healthcheck {
+	switch {
+	case *healthcheck:
 		os.Exit(checkHealth())
+	case *migrate:
+		os.Exit(runMigrations())
+	default:
+		os.Exit(serve())
 	}
-	os.Exit(serve())
+}
+
+func runMigrations() int {
+	log := logger.New(os.Stdout, slog.LevelInfo)
+	url := os.Getenv("MIGRATION_DATABASE_URL")
+	if url == "" {
+		log.Error("MIGRATION_DATABASE_URL is not set (the owner role's connection URL)")
+		return 1
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	if err := app.Migrate(ctx, url, log); err != nil {
+		log.Error("migration failed", slog.Any("error", err))
+		return 1
+	}
+	log.Info("database is up to date")
+	return 0
 }
 
 func serve() int {
