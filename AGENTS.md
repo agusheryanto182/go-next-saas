@@ -25,7 +25,7 @@ Run `make check` before saying work is done. If a command is missing, say so ins
 7. **Tests.** New behaviour comes with tests at the right level (unit, integration, component, end-to-end).
 8. **Git.** Work on a branch, never push to `main`. Conventional commit messages. Pull request body says `Closes #n`.
 9. **Docs.** A changed decision updates its ADR in the same pull request.
-10. **Dependencies.** Use the newest stable release that is at least 14 days old, pinned exactly. Security fixes are the exception: take them as soon as `govulncheck` or an advisory reports them.
+10. **Dependencies.** Use the newest stable release that is at least 14 days old, pinned exactly. Updates arrive through Dependabot (`.github/dependabot.yml`). Security fixes are the exception: take them as soon as `govulncheck` or an advisory reports them.
 
 ## Getting stuck
 If the same error comes back three times, stop and report what you tried. Do not disable checks, skip tests or loosen lint rules to get green.
