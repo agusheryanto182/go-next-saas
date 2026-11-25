@@ -56,6 +56,88 @@ func (mr *MockTransactorMockRecorder) InScope(ctx, scope, fn any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InScope", reflect.TypeOf((*MockTransactor)(nil).InScope), ctx, scope, fn)
 }
 
+// MockPasswordHasher is a mock of PasswordHasher interface.
+type MockPasswordHasher struct {
+	ctrl     *gomock.Controller
+	recorder *MockPasswordHasherMockRecorder
+	isgomock struct{}
+}
+
+// MockPasswordHasherMockRecorder is the mock recorder for MockPasswordHasher.
+type MockPasswordHasherMockRecorder struct {
+	mock *MockPasswordHasher
+}
+
+// NewMockPasswordHasher creates a new mock instance.
+func NewMockPasswordHasher(ctrl *gomock.Controller) *MockPasswordHasher {
+	mock := &MockPasswordHasher{ctrl: ctrl}
+	mock.recorder = &MockPasswordHasherMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockPasswordHasher) EXPECT() *MockPasswordHasherMockRecorder {
+	return m.recorder
+}
+
+// Hash mocks base method.
+func (m *MockPasswordHasher) Hash(ctx context.Context, password string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Hash", ctx, password)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Hash indicates an expected call of Hash.
+func (mr *MockPasswordHasherMockRecorder) Hash(ctx, password any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Hash", reflect.TypeOf((*MockPasswordHasher)(nil).Hash), ctx, password)
+}
+
+// NeedsRehash mocks base method.
+func (m *MockPasswordHasher) NeedsRehash(encoded string) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NeedsRehash", encoded)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// NeedsRehash indicates an expected call of NeedsRehash.
+func (mr *MockPasswordHasherMockRecorder) NeedsRehash(encoded any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NeedsRehash", reflect.TypeOf((*MockPasswordHasher)(nil).NeedsRehash), encoded)
+}
+
+// Verify mocks base method.
+func (m *MockPasswordHasher) Verify(ctx context.Context, encoded, password string) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Verify", ctx, encoded, password)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Verify indicates an expected call of Verify.
+func (mr *MockPasswordHasherMockRecorder) Verify(ctx, encoded, password any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockPasswordHasher)(nil).Verify), ctx, encoded, password)
+}
+
+// VerifyDummy mocks base method.
+func (m *MockPasswordHasher) VerifyDummy(ctx context.Context, password string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "VerifyDummy", ctx, password)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// VerifyDummy indicates an expected call of VerifyDummy.
+func (mr *MockPasswordHasherMockRecorder) VerifyDummy(ctx, password any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VerifyDummy", reflect.TypeOf((*MockPasswordHasher)(nil).VerifyDummy), ctx, password)
+}
+
 // MockUserRepo is a mock of UserRepo interface.
 type MockUserRepo struct {
 	ctrl     *gomock.Controller

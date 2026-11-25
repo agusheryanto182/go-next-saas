@@ -10,11 +10,16 @@ import (
 
 	"github.com/agusheryanto182/go-next-saas/api/config"
 	"github.com/agusheryanto182/go-next-saas/api/internal/controller/restapi"
+	"github.com/agusheryanto182/go-next-saas/api/internal/repo"
 	"github.com/agusheryanto182/go-next-saas/api/internal/repo/persistent"
 	"github.com/agusheryanto182/go-next-saas/api/pkg/httpserver"
 	"github.com/agusheryanto182/go-next-saas/api/pkg/otel"
+	"github.com/agusheryanto182/go-next-saas/api/pkg/password"
 	"github.com/agusheryanto182/go-next-saas/api/pkg/postgres"
 )
+
+// pkg/password implements the use cases' hashing contract; the sign-in use cases take it from here.
+var _ repo.PasswordHasher = (*password.Hasher)(nil)
 
 // Migrate applies pending database migrations. url must connect as the owner role.
 func Migrate(ctx context.Context, url string, log *slog.Logger) error {
