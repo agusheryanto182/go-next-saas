@@ -4,6 +4,110 @@
  */
 
 export interface paths {
+    "/v1/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign in
+         * @description Creates a session and sets the session cookie (ADR 0006). Every failure gets the same 401
+         *     answer, so it does not reveal whether the email exists. Too many failures from the same
+         *     IP address, for one email or in total, get 429 (ADR 0013).
+         */
+        post: operations["login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign out
+         * @description Revokes the current session, if any, and always clears the session cookie.
+         */
+        post: operations["logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/forgot-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Email a password reset link
+         * @description Always 204, whether or not the email belongs to an account. An account with a password gets
+         *     a link valid for 1 hour; at most 3 emails per account per hour (ADR 0012).
+         */
+        post: operations["requestPasswordReset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/tokens/inspect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check a link token before using it
+         * @description Lets a page say at once that a link is invalid or expired. The token travels in the body,
+         *     never in a URL, so it stays out of access logs.
+         */
+        post: operations["inspectToken"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/reset-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set a new password with a reset token
+         * @description Uses the token once, sets the password and signs the account out everywhere.
+         */
+        post: operations["resetPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/me": {
         parameters: {
             query?: never;
@@ -13,6 +117,26 @@ export interface paths {
         };
         /** The signed-in user */
         get: operations["getMe"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me/organizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Organizations of the signed-in user
+         * @description Every membership of the signed-in user, by organization name, including deactivated ones.
+         */
+        get: operations["listMyOrganizations"];
         put?: never;
         post?: never;
         delete?: never;
@@ -67,6 +191,47 @@ export interface components {
         Role: "owner" | "admin" | "member";
         /** @enum {string} */
         MembershipStatus: "active" | "deactivated";
+        /**
+         * Format: email
+         * @description Compared case-insensitively; stored in lowercase.
+         */
+        Email: string;
+        /** @description 8 to 128 characters, no other rules (ADR 0011). */
+        NewPassword: string;
+        /** @description A link token from an email (256 bits, base64url). */
+        Token: string;
+        LoginRequest: {
+            email: components["schemas"]["Email"];
+            /** @description Not checked against the password rules, so every wrong password gets the same 401. */
+            password: string;
+        };
+        PasswordResetRequest: {
+            email: components["schemas"]["Email"];
+        };
+        TokenRequest: {
+            token: components["schemas"]["Token"];
+        };
+        TokenInfo: {
+            /** @enum {string} */
+            type: "password_reset";
+            /** Format: date-time */
+            expiresAt: string;
+        };
+        ResetPasswordRequest: {
+            token: components["schemas"]["Token"];
+            password: components["schemas"]["NewPassword"];
+        };
+        UserOrganization: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            slug: string;
+            role: components["schemas"]["Role"];
+            status: components["schemas"]["MembershipStatus"];
+        };
+        UserOrganizationList: {
+            items: components["schemas"]["UserOrganization"][];
+        };
         User: {
             /** Format: uuid */
             id: string;
@@ -98,6 +263,44 @@ export interface components {
         };
     };
     responses: {
+        /** @description Sign-in failed. Always "Invalid email or password.", whatever the reason. */
+        InvalidCredentials: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Too many failed sign-ins. Try again after `Retry-After` seconds. */
+        TooManyRequests: {
+            headers: {
+                /** @description Seconds until the next attempt is allowed. */
+                "Retry-After"?: number;
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description The link is unknown, used or expired. Always "This link is invalid or has expired." */
+        InvalidToken: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Rejected because the request came from another site (ADR 0015). */
+        CrossOrigin: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /** @description The request is invalid. `errors` names the fields at fault. */
         BadRequest: {
             headers: {
@@ -153,11 +356,144 @@ export interface components {
         Size: number;
     };
     requestBodies: never;
-    headers: never;
+    headers: {
+        /** @description `__Host-session=<token>; Path=/; Max-Age=<seconds>; HttpOnly; Secure; SameSite=Lax` */
+        SessionCookie: string;
+        /** @description `__Host-session=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax` */
+        ClearedSessionCookie: string;
+    };
     pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    login: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Signed in. */
+            204: {
+                headers: {
+                    "Set-Cookie": components["headers"]["SessionCookie"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["InvalidCredentials"];
+            403: components["responses"]["CrossOrigin"];
+            429: components["responses"]["TooManyRequests"];
+            default: components["responses"]["Error"];
+        };
+    };
+    logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Signed out. */
+            204: {
+                headers: {
+                    "Set-Cookie": components["headers"]["ClearedSessionCookie"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            403: components["responses"]["CrossOrigin"];
+            default: components["responses"]["Error"];
+        };
+    };
+    requestPasswordReset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordResetRequest"];
+            };
+        };
+        responses: {
+            /** @description Accepted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["CrossOrigin"];
+            default: components["responses"]["Error"];
+        };
+    };
+    inspectToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TokenRequest"];
+            };
+        };
+        responses: {
+            /** @description The token is valid. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenInfo"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["CrossOrigin"];
+            404: components["responses"]["InvalidToken"];
+            default: components["responses"]["Error"];
+        };
+    };
+    resetPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResetPasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description Password changed. Sign in with the new password. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["CrossOrigin"];
+            404: components["responses"]["InvalidToken"];
+            default: components["responses"]["Error"];
+        };
+    };
     getMe: {
         parameters: {
             query?: never;
@@ -174,6 +510,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["User"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            default: components["responses"]["Error"];
+        };
+    };
+    listMyOrganizations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The user's organizations. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserOrganizationList"];
                 };
             };
             401: components["responses"]["Unauthorized"];
