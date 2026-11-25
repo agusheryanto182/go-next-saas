@@ -2,6 +2,9 @@
 //
 //	app               serve HTTP (same as `app serve`)
 //	app migrate       apply pending database migrations as the owner role (MIGRATION_DATABASE_URL), then exit
+//	app seed          create the development organizations and accounts (local databases only)
+//	app create-org    create an organization and its owner: -name -slug -owner-email -owner-name
+//	                  -owner-password-stdin (the password is read from standard input)
 //	app healthcheck   exit 0 if the local server answers /healthz (for container health checks)
 //	app help          print usage
 //
@@ -50,6 +53,16 @@ func commands() []command {
 			name:    "migrate",
 			summary: "apply pending migrations as the owner role (MIGRATION_DATABASE_URL), then exit",
 			setup:   func(*flag.FlagSet) func(stdout, stderr io.Writer) int { return runMigrations },
+		},
+		{
+			name:    "seed",
+			summary: "create the development organizations and accounts (local databases only, DATABASE_URL)",
+			setup:   func(*flag.FlagSet) func(stdout, stderr io.Writer) int { return seed },
+		},
+		{
+			name:    "create-org",
+			summary: "create an organization and its owner (DATABASE_URL)",
+			setup:   setupCreateOrg,
 		},
 		{
 			name:    "healthcheck",

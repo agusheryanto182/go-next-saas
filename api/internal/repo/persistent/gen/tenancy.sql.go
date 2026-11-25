@@ -13,8 +13,8 @@ import (
 )
 
 const createMembership = `-- name: CreateMembership :one
-INSERT INTO memberships (organization_id, user_id, role)
-VALUES ($1, $2, $3)
+INSERT INTO memberships (organization_id, user_id, role, status)
+VALUES ($1, $2, $3, $4)
 RETURNING organization_id, user_id, role, status, created_at, updated_at
 `
 
@@ -22,10 +22,16 @@ type CreateMembershipParams struct {
 	OrganizationID uuid.UUID
 	UserID         uuid.UUID
 	Role           string
+	Status         string
 }
 
 func (q *Queries) CreateMembership(ctx context.Context, arg CreateMembershipParams) (Membership, error) {
-	row := q.db.QueryRow(ctx, createMembership, arg.OrganizationID, arg.UserID, arg.Role)
+	row := q.db.QueryRow(ctx, createMembership,
+		arg.OrganizationID,
+		arg.UserID,
+		arg.Role,
+		arg.Status,
+	)
 	var i Membership
 	err := row.Scan(
 		&i.OrganizationID,
@@ -109,6 +115,26 @@ func (q *Queries) GetOrganizationBySlug(ctx context.Context, slug string) (Organ
 		&i.ID,
 		&i.Name,
 		&i.Slug,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getUserByEmail = `-- name: GetUserByEmail :one
+SELECT id, email, full_name, phone, password_hash, created_at, updated_at FROM users WHERE email = $1
+`
+
+// Users are global (no row-level security); email is stored lowercase.
+func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByEmail, email)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.FullName,
+		&i.Phone,
+		&i.PasswordHash,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

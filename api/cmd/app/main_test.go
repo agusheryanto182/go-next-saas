@@ -64,6 +64,25 @@ func TestRunDispatch(t *testing.T) {
 		{name: "no subcommand serves", args: nil, wantCode: 1, wantStderr: "DATABASE_URL"},
 		{name: "serve", args: []string{"serve"}, wantCode: 1, wantStderr: "DATABASE_URL"},
 		{name: "migrate", args: []string{"migrate"}, wantCode: 1, wantStdout: "MIGRATION_DATABASE_URL is not set"},
+		{name: "seed", args: []string{"seed"}, wantCode: 1, wantStdout: "DATABASE_URL is not set"},
+		{
+			name:       "create-org without a password source",
+			args:       []string{"create-org", "-name", "Acme", "-slug", "acme", "-owner-email", "a@acme.test", "-owner-name", "A"},
+			wantCode:   2,
+			wantStderr: "invitations arrive in M2; use -owner-password-stdin",
+		},
+		{
+			name:       "create-org missing a flag",
+			args:       []string{"create-org", "-name", "Acme", "-owner-email", "a@acme.test", "-owner-name", "A", "-owner-password-stdin"},
+			wantCode:   2,
+			wantStderr: "-slug is required",
+		},
+		{
+			name:       "create-org without a database",
+			args:       []string{"create-org", "-name", "Acme", "-slug", "acme", "-owner-email", "a@acme.test", "-owner-name", "A", "-owner-password-stdin"},
+			wantCode:   1,
+			wantStderr: "DATABASE_URL is not set",
+		},
 		{name: "healthcheck healthy", args: []string{"healthcheck"}, healthStatus: http.StatusOK, wantCode: 0},
 		{name: "healthcheck unhealthy", args: []string{"healthcheck"}, healthStatus: http.StatusServiceUnavailable, wantCode: 1},
 	}
