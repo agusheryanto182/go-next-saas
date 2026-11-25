@@ -28,6 +28,21 @@ type (
 		InScope(ctx context.Context, scope Scope, fn func(ctx context.Context) error) error
 	}
 
+	// PasswordHasher hashes and verifies passwords (ADR 0011, pkg/password). Its methods wait for a
+	// free hashing slot and return ctx.Err() if ctx ends first. Never call them inside InScope: a hash
+	// would hold a pooled connection for its whole duration.
+	PasswordHasher interface {
+		// Hash returns the encoded hash of password with a fresh salt.
+		Hash(ctx context.Context, password string) (string, error)
+		// Verify reports whether password matches encoded. A malformed encoded returns an error.
+		Verify(ctx context.Context, encoded, password string) (bool, error)
+		// VerifyDummy takes as long as a Verify against a current hash and discards the result. Run it
+		// for unknown emails and accounts that cannot sign in, so timing does not reveal which exist.
+		VerifyDummy(ctx context.Context, password string) error
+		// NeedsRehash reports whether encoded was made with other parameters than Hash uses now.
+		NeedsRehash(encoded string) bool
+	}
+
 	// UserRepo stores global user identities.
 	UserRepo interface {
 		// Store inserts u and sets its timestamps. A taken email returns entity.ErrUserAlreadyExists.
