@@ -131,10 +131,35 @@ func TestMailSendDue(t *testing.T) {
 			assert.NoError(t, ctx.Err(), "the outcome is recorded after shutdown began")
 			return nil
 		})
+		// The email never tried is handed back, so shutting down costs it no attempt.
+		d.outbox.EXPECT().Release(gomock.Any(), []string{"e2"}).DoAndReturn(func(ctx context.Context, _ []string) error {
+			assert.NoError(t, ctx.Err())
+			_, hasDeadline := ctx.Deadline()
+			assert.True(t, hasDeadline, "the release is bounded")
+			return nil
+		})
 
 		n, err := uc.SendDue(ctx)
 		require.NoError(t, err)
 		assert.Equal(t, 2, n)
+	})
+
+	t.Run("the recipient and NUL bytes are kept out of the stored error", func(t *testing.T) {
+		t.Parallel()
+		uc, d := newMail(t)
+		e := resetEmail("e1")
+		d.outbox.EXPECT().ClaimDue(gomock.Any()).Return([]entity.Email{e}, nil)
+		d.mailer.EXPECT().Send(gomock.Any(), e).Return(errors.New("550 5.1.1 <alice@acme.test> unknown\x00 user\xff"))
+		d.outbox.EXPECT().Reschedule(gomock.Any(), "e1", gomock.Any()).
+			DoAndReturn(func(ctx context.Context, _, lastError string) error {
+				assert.Equal(t, "550 5.1.1 <[redacted]> unknown user�", lastError)
+				_, hasDeadline := ctx.Deadline()
+				assert.True(t, hasDeadline, "recording the outcome is bounded")
+				return nil
+			})
+
+		_, err := uc.SendDue(t.Context())
+		require.NoError(t, err)
 	})
 
 	t.Run("claim failure", func(t *testing.T) {

@@ -156,8 +156,7 @@ func (m *Mailer) message(e entity.Email) (*gomail.Msg, error) {
 	}
 	data := templateData{FullName: e.Data.FullName, AppURL: m.appBaseURL}
 	if e.Kind == entity.EmailPasswordReset {
-		// A fragment is never sent to a server, so the token stays out of access logs and Referer headers.
-		data.Link = m.appBaseURL + "/reset-password#token=" + url.QueryEscape(e.Data.Token)
+		data.Link = resetLink(m.appBaseURL, e.Data.Token)
 	}
 
 	var subject, text, html bytes.Buffer
@@ -185,4 +184,11 @@ func (m *Mailer) message(e entity.Email) (*gomail.Msg, error) {
 	msg.SetBodyString(gomail.TypeTextPlain, text.String())
 	msg.AddAlternativeString(gomail.TypeTextHTML, html.String())
 	return msg, nil
+}
+
+// resetLink points at the web app's reset page. The token is in the fragment, which is never sent to
+// a server, so it stays out of access logs and Referer headers. It is form-encoded, so the page can read
+// it back with URLSearchParams.
+func resetLink(appBaseURL, token string) string {
+	return appBaseURL + "/reset-password#" + url.Values{"token": {token}}.Encode()
 }

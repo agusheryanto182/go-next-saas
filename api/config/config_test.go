@@ -28,7 +28,7 @@ func TestNewDefaults(t *testing.T) {
 	assert.Equal(t, slog.LevelInfo, cfg.SlogLevel())
 	assert.Equal(t, SMTP{
 		Host: "smtp.example.com", Port: 587, TLS: "starttls",
-		ConnectTimeout: 10 * time.Second, SendTimeout: 30 * time.Second,
+		ConnectTimeout: 10 * time.Second, SendTimeout: 15 * time.Second,
 	}, cfg.SMTP)
 }
 
@@ -49,6 +49,7 @@ func TestNewRejectsInvalidConfig(t *testing.T) {
 		{"username without password", map[string]string{"SMTP_USERNAME": "mailer"}, "SMTP_PASSWORD"},
 		{"zero connect timeout", map[string]string{"SMTP_CONNECT_TIMEOUT": "0s"}, "SMTP_CONNECT_TIMEOUT"},
 		{"zero send timeout", map[string]string{"SMTP_SEND_TIMEOUT": "0s"}, "SMTP_SEND_TIMEOUT"},
+		{"send timeout longer than a tenth of the lease", map[string]string{"SMTP_SEND_TIMEOUT": "30s"}, "SMTP_SEND_TIMEOUT"},
 		{"missing sender", map[string]string{"MAIL_FROM": ""}, "MAIL_FROM"},
 		{"sender without address", map[string]string{"MAIL_FROM": "go-next-saas"}, "MAIL_FROM"},
 	}

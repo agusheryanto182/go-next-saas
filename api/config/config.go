@@ -41,8 +41,10 @@ type SMTP struct {
 	// TLS is none, starttls (production providers on 587) or tls (implicit TLS, usually 465).
 	TLS            string        `env:"TLS"             envDefault:"starttls"`
 	ConnectTimeout time.Duration `env:"CONNECT_TIMEOUT" envDefault:"10s"`
-	SendTimeout    time.Duration `env:"SEND_TIMEOUT"    envDefault:"30s"`
+	SendTimeout    time.Duration `env:"SEND_TIMEOUT"    envDefault:"15s"`
 }
+
+const _maxSendTimeout = 20 * time.Second
 
 // ErrInvalid is wrapped by every validation failure.
 var ErrInvalid = errors.New("invalid value")
@@ -106,8 +108,11 @@ func (s SMTP) validate() error {
 	if s.ConnectTimeout <= 0 {
 		errs = append(errs, fmt.Errorf("SMTP_CONNECT_TIMEOUT: %w: must be positive", ErrInvalid))
 	}
-	if s.SendTimeout <= 0 {
-		errs = append(errs, fmt.Errorf("SMTP_SEND_TIMEOUT: %w: must be positive", ErrInvalid))
+	// The outbox leases 10 emails for 5 minutes and sends them one by one (ADR 0010): each send must
+	// fit a tenth of the lease with room for recording it, or a slow server causes duplicates.
+	if s.SendTimeout <= 0 || s.SendTimeout > _maxSendTimeout {
+		errs = append(errs, fmt.Errorf("SMTP_SEND_TIMEOUT %s: %w: must be positive and at most %s",
+			s.SendTimeout, ErrInvalid, _maxSendTimeout))
 	}
 	return errors.Join(errs...)
 }

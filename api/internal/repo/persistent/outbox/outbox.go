@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/agusheryanto182/go-next-saas/api/internal/entity"
 	"github.com/agusheryanto182/go-next-saas/api/internal/repo"
 	"github.com/agusheryanto182/go-next-saas/api/internal/repo/persistent"
@@ -66,6 +68,9 @@ func (r *Repo) ClaimDue(ctx context.Context) ([]entity.Email, error) {
 
 	emails := make([]entity.Email, 0, len(rows))
 	for _, row := range rows {
+		if row.Status != "pending" {
+			continue // given up by the claim
+		}
 		var p payload
 		if len(row.Payload) > 0 {
 			if err := json.Unmarshal(row.Payload, &p); err != nil {
@@ -81,6 +86,24 @@ func (r *Repo) ClaimDue(ctx context.Context) ([]entity.Email, error) {
 		})
 	}
 	return emails, nil
+}
+
+// Release -.
+func (r *Repo) Release(ctx context.Context, ids []string) error {
+	q, err := persistent.Queries(ctx)
+	if err != nil {
+		return fmt.Errorf("OutboxRepo - Release - persistent.Queries: %w", err)
+	}
+	uids := make([]uuid.UUID, len(ids))
+	for i, id := range ids {
+		if uids[i], err = persistent.ParseID(id); err != nil {
+			return fmt.Errorf("OutboxRepo - Release - persistent.ParseID: %w", err)
+		}
+	}
+	if err := q.ReleaseEmails(ctx, uids); err != nil {
+		return fmt.Errorf("OutboxRepo - Release - q.ReleaseEmails: %w", err)
+	}
+	return nil
 }
 
 // MarkSent -.

@@ -39,6 +39,13 @@ func (r *tracedRepo) ClaimDue(ctx context.Context) ([]entity.Email, error) {
 	return emails, err
 }
 
+func (r *tracedRepo) Release(ctx context.Context, ids []string) error {
+	ctx, span := otel.StartSpan(ctx, _tracerName, "OutboxRepo.Release", attribute.Int("email.released", len(ids)))
+	err := r.next.Release(ctx, ids)
+	otel.EndSpan(span, err)
+	return err
+}
+
 func (r *tracedRepo) MarkSent(ctx context.Context, id string) error {
 	ctx, span := otel.StartSpan(ctx, _tracerName, "OutboxRepo.MarkSent", attribute.String("email.id", id))
 	err := r.next.MarkSent(ctx, id)

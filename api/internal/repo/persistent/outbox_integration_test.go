@@ -232,11 +232,54 @@ func TestOutbox(t *testing.T) {
 				assert.InDelta(t, 60*math.Pow(2, float64(attempt-1)), r.dueInSeconds, 5, "attempt %d", attempt)
 			} else {
 				require.Equal(t, "failed", r.status)
+				assert.False(t, r.hasPayload, "failing clears the payload")
 			}
 		}
 
 		env.exec(ctx, t, "UPDATE outbox_emails SET next_attempt_at = now() WHERE id = $1", id)
 		assert.Empty(t, env.claim(ctx, t), "a failed email is not claimed")
+	})
+
+	t.Run("a crash during the last attempt fails the email at the next claim", func(t *testing.T) {
+		reset(t)
+		id := env.enqueue(ctx, t, 1)[0]
+		// The 8th attempt was claimed, then the process died: the lease expired without an outcome.
+		env.exec(ctx, t, "UPDATE outbox_emails SET attempts = 8, next_attempt_at = now() WHERE id = $1", id)
+
+		assert.Empty(t, env.claim(ctx, t))
+		r := env.row(ctx, t, id)
+		assert.Equal(t, "failed", r.status)
+		assert.Equal(t, 8, r.attempts, "no 9th attempt")
+		assert.False(t, r.hasPayload)
+		require.NotNil(t, r.lastError)
+	})
+
+	t.Run("a password reset older than its token is not sent", func(t *testing.T) {
+		reset(t)
+		reset1h := env.enqueue(ctx, t, 1)[0]
+		changed := newID()
+		env.do(ctx, t, func(ctx context.Context) error {
+			return env.outbox.Enqueue(ctx, entity.Email{ID: changed, Kind: entity.EmailPasswordChanged, To: "a@acme.test"})
+		})
+		env.exec(ctx, t, "UPDATE outbox_emails SET created_at = now() - interval '61 minutes'")
+
+		emails := env.claim(ctx, t)
+		assert.Equal(t, []string{changed}, ids(emails), "only the password reset expires")
+		r := env.row(ctx, t, reset1h)
+		assert.Equal(t, "failed", r.status)
+		assert.False(t, r.hasPayload, "the expired token is cleared")
+	})
+
+	t.Run("release undoes the attempt and makes the email due now", func(t *testing.T) {
+		reset(t)
+		all := env.enqueue(ctx, t, 2)
+		require.Len(t, env.claim(ctx, t), 2)
+		env.do(ctx, t, func(ctx context.Context) error { return env.outbox.Release(ctx, all[1:]) })
+
+		emails := env.claim(ctx, t)
+		require.Len(t, emails, 1)
+		assert.Equal(t, all[1], emails[0].ID)
+		assert.Equal(t, 1, emails[0].Attempts, "the released claim did not count")
 	})
 
 	t.Run("sent clears the payload and the last error", func(t *testing.T) {

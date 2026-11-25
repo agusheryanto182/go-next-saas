@@ -13,17 +13,24 @@ import (
 )
 
 const claimDueEmails = `-- name: ClaimDueEmails :many
-UPDATE outbox_emails o
-SET attempts = o.attempts + 1,
-    next_attempt_at = now() + interval '5 minutes'
-WHERE o.id IN (
-    SELECT d.id FROM outbox_emails d
+WITH due AS (
+    SELECT d.id,
+           (d.attempts >= 8 OR (d.kind = 'password_reset' AND d.created_at < now() - interval '1 hour')) AS give_up
+    FROM outbox_emails d
     WHERE d.status = 'pending' AND d.next_attempt_at <= now()
     ORDER BY d.next_attempt_at, d.id
     LIMIT 10
     FOR UPDATE SKIP LOCKED
 )
-RETURNING o.id, o.kind, o.to_email, o.payload, o.attempts
+UPDATE outbox_emails o
+SET attempts = CASE WHEN due.give_up THEN o.attempts ELSE o.attempts + 1 END,
+    status = CASE WHEN due.give_up THEN 'failed' ELSE 'pending' END,
+    payload = CASE WHEN due.give_up THEN NULL ELSE o.payload END,
+    last_error = CASE WHEN due.give_up THEN coalesce(o.last_error, 'given up: no attempt left') ELSE o.last_error END,
+    next_attempt_at = now() + interval '5 minutes'
+FROM due
+WHERE o.id = due.id
+RETURNING o.id, o.kind, o.to_email, o.payload, o.attempts, o.status
 `
 
 type ClaimDueEmailsRow struct {
@@ -32,10 +39,14 @@ type ClaimDueEmailsRow struct {
 	ToEmail  string
 	Payload  []byte
 	Attempts int32
+	Status   string
 }
 
 // Leases up to 10 due rows for 5 minutes and counts the attempt. SKIP LOCKED lets several instances
 // claim at once without waiting for, or taking, each other's rows. A crash lets the lease expire.
+// A due row is given up instead (status 'failed', payload cleared) when it has used its 8 attempts,
+// which happens when the process stopped during the last one, or when it is a password reset older
+// than its token (1 hour). The caller sends only the rows returned as 'pending'.
 func (q *Queries) ClaimDueEmails(ctx context.Context) ([]ClaimDueEmailsRow, error) {
 	rows, err := q.db.Query(ctx, claimDueEmails)
 	if err != nil {
@@ -51,6 +62,7 @@ func (q *Queries) ClaimDueEmails(ctx context.Context) ([]ClaimDueEmailsRow, erro
 			&i.ToEmail,
 			&i.Payload,
 			&i.Attempts,
+			&i.Status,
 		); err != nil {
 			return nil, err
 		}
@@ -68,6 +80,7 @@ SET payload = NULL
 WHERE status = 'failed' AND payload IS NOT NULL AND created_at < $1
 `
 
+// A safety net: failing clears the payload already.
 func (q *Queries) ClearFailedEmailPayloads(ctx context.Context, createdBefore time.Time) (int64, error) {
 	result, err := q.db.Exec(ctx, clearFailedEmailPayloads, createdBefore)
 	if err != nil {
@@ -125,9 +138,22 @@ func (q *Queries) PurgeSentEmails(ctx context.Context, sentBefore time.Time) (in
 	return result.RowsAffected(), nil
 }
 
+const releaseEmails = `-- name: ReleaseEmails :exec
+UPDATE outbox_emails
+SET attempts = greatest(attempts - 1, 0), next_attempt_at = now()
+WHERE id = ANY($1::uuid[]) AND status = 'pending'
+`
+
+// Returns claimed rows that were never tried (shutdown): the attempt is undone and they are due now.
+func (q *Queries) ReleaseEmails(ctx context.Context, ids []uuid.UUID) error {
+	_, err := q.db.Exec(ctx, releaseEmails, ids)
+	return err
+}
+
 const rescheduleEmail = `-- name: RescheduleEmail :exec
 UPDATE outbox_emails
 SET status = CASE WHEN attempts >= 8 THEN 'failed' ELSE 'pending' END,
+    payload = CASE WHEN attempts >= 8 THEN NULL ELSE payload END,
     next_attempt_at = now() + interval '1 minute' * power(2, greatest(attempts - 1, 0)),
     last_error = $1::text
 WHERE id = $2 AND status = 'pending'
@@ -138,7 +164,8 @@ type RescheduleEmailParams struct {
 	ID        uuid.UUID
 }
 
-// After attempt n the next one is due in 2^(n-1) minutes (1, 2, 4…); after the 8th the row fails.
+// After attempt n the next one is due in 2^(n-1) minutes (1, 2, 4…); after the 8th the row fails
+// and its payload is cleared (a reset token has expired by then).
 func (q *Queries) RescheduleEmail(ctx context.Context, arg RescheduleEmailParams) error {
 	_, err := q.db.Exec(ctx, rescheduleEmail, arg.LastError, arg.ID)
 	return err

@@ -236,6 +236,20 @@ func (mr *MockOutboxRepoMockRecorder) PurgeSent(ctx, sentBefore any) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PurgeSent", reflect.TypeOf((*MockOutboxRepo)(nil).PurgeSent), ctx, sentBefore)
 }
 
+// Release mocks base method.
+func (m *MockOutboxRepo) Release(ctx context.Context, ids []string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Release", ctx, ids)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Release indicates an expected call of Release.
+func (mr *MockOutboxRepoMockRecorder) Release(ctx, ids any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Release", reflect.TypeOf((*MockOutboxRepo)(nil).Release), ctx, ids)
+}
+
 // Reschedule mocks base method.
 func (m *MockOutboxRepo) Reschedule(ctx context.Context, id, lastError string) error {
 	m.ctrl.T.Helper()
