@@ -84,6 +84,7 @@ make help         # all targets
 - [Architecture](docs/architecture.md): system, layers, request flow, tenancy
 - [Agentic workflow](docs/agentic-workflow.md): how work goes from issue to merged pull request
 - [Decision records](docs/README.md#decision-records)
+- API reference: `make docs` builds it from [`openapi/openapi.yaml`](openapi/openapi.yaml) into `.cache/docs/api.html`
 
 ## Status
 

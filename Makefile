@@ -21,7 +21,7 @@ SQUAWK := npx --yes squawk-cli@2.72.0
 # Git ref whose contract check-breaking compares against.
 BASE ?= origin/main
 
-.PHONY: help dev down reset-db migrate gen fmt check check-fast check-api check-web check-spec check-breaking vuln test-integration e2e seed
+.PHONY: help dev down reset-db migrate gen fmt check check-fast check-api check-web check-spec check-breaking vuln test-integration e2e seed docs
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-18s %s\n", $$1, $$2}'
@@ -84,6 +84,10 @@ check-breaking: ## Fail on contract changes that break existing clients, compare
 	@mkdir -p .cache
 	@git show $(BASE):openapi/openapi.yaml > .cache/openapi-base.yaml
 	cd api && $(GO_TOOL) oasdiff breaking ../.cache/openapi-base.yaml ../openapi/openapi.yaml --fail-on ERR
+
+docs: ## Build a browsable API reference from the OpenAPI contract (.cache/docs/api.html)
+	cd openapi && npm run --silent docs
+	@echo "API reference: file://$(CURDIR)/.cache/docs/api.html"
 
 vuln: ## Known vulnerabilities in the API code and its dependencies
 	cd api && $(GO_TOOL) govulncheck ./...

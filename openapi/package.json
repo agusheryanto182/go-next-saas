@@ -2,7 +2,8 @@
   "name": "openapi",
   "private": true,
   "scripts": {
-    "lint": "redocly lint openapi.yaml"
+    "lint": "redocly lint openapi.yaml",
+    "docs": "redocly build-docs openapi.yaml -o ../.cache/docs/api.html"
   },
   "devDependencies": {
     "@redocly/cli": "2.77.0"

@@ -3,7 +3,7 @@
 .env.*
 !.env.example
 
-# Local caches (make check scratch output)
+# Local caches (make check scratch output, make docs)
 /.cache/
 
 # Go
