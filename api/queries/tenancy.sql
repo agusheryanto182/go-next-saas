@@ -3,14 +3,18 @@ INSERT INTO users (id, email, full_name, phone, password_hash)
 VALUES (@id, @email, @full_name, sqlc.narg('phone'), sqlc.narg('password_hash'))
 RETURNING *;
 
+-- name: GetUserByEmail :one
+-- Users are global (no row-level security); email is stored lowercase.
+SELECT * FROM users WHERE email = @email;
+
 -- name: CreateOrganization :one
 INSERT INTO organizations (id, name, slug)
 VALUES (@id, @name, @slug)
 RETURNING *;
 
 -- name: CreateMembership :one
-INSERT INTO memberships (organization_id, user_id, role)
-VALUES (@organization_id, @user_id, @role)
+INSERT INTO memberships (organization_id, user_id, role, status)
+VALUES (@organization_id, @user_id, @role, @status)
 RETURNING *;
 
 -- name: ListOrganizationMembers :many

@@ -27,3 +27,13 @@ func (r *tracedRepo) Store(ctx context.Context, u *entity.User) error {
 	otel.EndSpan(span, err)
 	return err
 }
+
+func (r *tracedRepo) GetByEmail(ctx context.Context, email string) (entity.User, error) {
+	ctx, span := otel.StartSpan(ctx, _tracerName, "UserRepo.GetByEmail")
+	u, err := r.next.GetByEmail(ctx, email)
+	if err == nil {
+		span.SetAttributes(attribute.String("user.id", u.ID))
+	}
+	otel.EndSpan(span, err)
+	return u, err
+}

@@ -47,6 +47,9 @@ type (
 	UserRepo interface {
 		// Store inserts u and sets its timestamps. A taken email returns entity.ErrUserAlreadyExists.
 		Store(ctx context.Context, u *entity.User) error
+		// GetByEmail returns the user with the normalized email (entity.NormalizeEmail), or
+		// entity.ErrUserNotFound.
+		GetByEmail(ctx context.Context, email string) (entity.User, error)
 	}
 
 	// OrganizationRepo stores organizations. Visible rows depend on the scope.
@@ -60,8 +63,8 @@ type (
 
 	// MembershipRepo stores memberships. Visible rows depend on the scope.
 	MembershipRepo interface {
-		// Store inserts m as an active membership and sets its status and timestamps; the scope's OrgID
-		// must be m.OrganizationID.
+		// Store inserts m with its status, active when m.Status is empty, and sets its status and
+		// timestamps; the scope's OrgID must be m.OrganizationID.
 		// An existing membership returns entity.ErrMembershipExists.
 		Store(ctx context.Context, m *entity.Membership) error
 		// ListMembers returns the organization's members, newest first.

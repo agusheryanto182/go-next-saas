@@ -34,7 +34,14 @@ func (r *Repo) Store(ctx context.Context, m *entity.Membership) error {
 		return fmt.Errorf("MembershipRepo - Store - persistent.ParseID user: %w", err)
 	}
 
-	row, err := q.CreateMembership(ctx, gen.CreateMembershipParams{OrganizationID: orgID, UserID: userID, Role: string(m.Role)})
+	status := m.Status
+	if status == "" {
+		status = entity.MembershipActive
+	}
+
+	row, err := q.CreateMembership(ctx, gen.CreateMembershipParams{
+		OrganizationID: orgID, UserID: userID, Role: string(m.Role), Status: string(status),
+	})
 	if err != nil {
 		if persistent.IsUniqueViolation(err, "memberships_pkey") {
 			return entity.ErrMembershipExists

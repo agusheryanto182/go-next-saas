@@ -96,8 +96,8 @@ e2e: ## Build and start the full stack, then run Playwright (once: cd e2e && npm
 	web=$$(docker compose port web 3000); api=$$(docker compose port api 8080); \
 	  cd e2e && E2E_BASE_URL=http://$$web E2E_API_URL=http://$$api npx --no-install playwright test
 
-seed: ## Sample organizations and users for development
-	@$(call todo,seed,M1)
+seed: ## Development organizations and accounts, idempotent (needs DATABASE_URL to a local database, e.g. from .env)
+	cd api && go run ./cmd/app seed
 
 # $(call todo,what,issue): explain a not-yet-implemented target without failing.
 define todo

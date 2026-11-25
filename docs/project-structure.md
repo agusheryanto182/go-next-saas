@@ -198,4 +198,4 @@ Run `make help` for the list. Targets for parts not built yet say which issue ad
 | `make check-breaking BASE=origin/main` | fail on contract changes that break existing clients (oasdiff), compared to `BASE` |
 | `make vuln` | known vulnerabilities in the API and its dependencies (govulncheck) |
 | `make e2e` | build and start the full stack, then run Playwright |
-| `make seed` | sample organizations and users (M1) |
+| `make seed` | development organizations and accounts (listed in the README); local databases only |

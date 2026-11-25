@@ -8,3 +8,50 @@
 
 // Package usecase_test is a generated GoMock package.
 package usecase_test
+
+import (
+	context "context"
+	reflect "reflect"
+
+	usecase "github.com/agusheryanto182/go-next-saas/api/internal/usecase"
+	gomock "go.uber.org/mock/gomock"
+)
+
+// MockOrganization is a mock of Organization interface.
+type MockOrganization struct {
+	ctrl     *gomock.Controller
+	recorder *MockOrganizationMockRecorder
+	isgomock struct{}
+}
+
+// MockOrganizationMockRecorder is the mock recorder for MockOrganization.
+type MockOrganizationMockRecorder struct {
+	mock *MockOrganization
+}
+
+// NewMockOrganization creates a new mock instance.
+func NewMockOrganization(ctrl *gomock.Controller) *MockOrganization {
+	mock := &MockOrganization{ctrl: ctrl}
+	mock.recorder = &MockOrganizationMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockOrganization) EXPECT() *MockOrganizationMockRecorder {
+	return m.recorder
+}
+
+// Create mocks base method.
+func (m *MockOrganization) Create(ctx context.Context, in usecase.CreateOrganizationInput) (usecase.CreateOrganizationResult, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Create", ctx, in)
+	ret0, _ := ret[0].(usecase.CreateOrganizationResult)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Create indicates an expected call of Create.
+func (mr *MockOrganizationMockRecorder) Create(ctx, in any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockOrganization)(nil).Create), ctx, in)
+}

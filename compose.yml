@@ -44,6 +44,18 @@ services:
       postgres:
         condition: service_healthy
 
+  # Creates the development organizations and accounts (README), then exits; running again changes
+  # nothing. The API starts after it, so end-to-end tests always have these accounts (ADR 0012).
+  seed:
+    profiles: [app]
+    build: ./api
+    command: ["seed"]
+    environment:
+      DATABASE_URL: postgres://saas_app:${POSTGRES_APP_PASSWORD:-saas_app}@postgres:5432/${POSTGRES_DB:-saas}?sslmode=disable
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
   api:
     profiles: [app]
     build: ./api
@@ -55,6 +67,8 @@ services:
       - "127.0.0.1:${API_PORT:-8080}:8080"
     depends_on:
       migrate:
+        condition: service_completed_successfully
+      seed:
         condition: service_completed_successfully
 
   web:
