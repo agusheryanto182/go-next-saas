@@ -38,7 +38,7 @@ reset-db: ## Delete local database data and start again (re-runs role setup)
 	$(MAKE) dev
 
 migrate: ## Apply pending migrations as the owner role (needs MIGRATION_DATABASE_URL, e.g. from .env)
-	cd api && go run ./cmd/app -migrate
+	cd api && go run ./cmd/app migrate
 
 gen: ## Regenerate code from the OpenAPI contract, the SQL queries and the contracts.go interfaces (mocks)
 	$(OAPI_GEN) -o api.gen.go $(SPEC_FROM_OAPI)

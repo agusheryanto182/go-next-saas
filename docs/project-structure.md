@@ -46,7 +46,7 @@ Clean architecture with the [go-clean-template](https://github.com/evrone/go-cle
 
 ```
 api/
-├─ cmd/app/main.go                       entry point: serve; `-migrate` applies migrations; `-healthcheck` for containers
+├─ cmd/app/main.go                       entry point, subcommands: `serve` (default), `migrate`, `healthcheck`, `help`
 ├─ config/config.go                      environment variables → validated Config
 ├─ internal/
 │  ├─ app/app.go                         wiring (manual dependency injection), start-up and graceful shutdown

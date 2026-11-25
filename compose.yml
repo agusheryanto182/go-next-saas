@@ -37,7 +37,7 @@ services:
   migrate:
     profiles: [app]
     build: ./api
-    command: ["-migrate"]
+    command: ["migrate"]
     environment:
       MIGRATION_DATABASE_URL: postgres://saas_owner:${POSTGRES_OWNER_PASSWORD:-saas_owner}@postgres:5432/${POSTGRES_DB:-saas}?sslmode=disable
     depends_on:

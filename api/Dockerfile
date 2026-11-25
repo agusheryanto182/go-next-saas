@@ -13,5 +13,5 @@ FROM gcr.io/distroless/static-debian12:nonroot
 COPY --from=build /out/app /app
 USER nonroot:nonroot
 EXPOSE 8080
-HEALTHCHECK --interval=10s --timeout=3s --retries=5 CMD ["/app", "-healthcheck"]
+HEALTHCHECK --interval=10s --timeout=3s --retries=5 CMD ["/app", "healthcheck"]
 ENTRYPOINT ["/app"]
