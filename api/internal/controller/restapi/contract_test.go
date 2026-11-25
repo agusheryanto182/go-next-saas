@@ -107,23 +107,50 @@ func TestContractRoutes(t *testing.T) {
 	h := newRouter(t, fakeDB{})
 	contract := contractRouter(t)
 
+	const token = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJ0123456" // 43 base64url characters
+	long := strings.Repeat("a", 129)
+
 	tests := []struct {
 		name       string
+		method     string
 		path       string
+		body       string
 		wantStatus int
 		wantField  string // field named in the problem's errors map
 	}{
-		{"me is not implemented yet", "/api/v1/me", http.StatusNotImplemented, ""},
-		{"members is not implemented yet", "/api/v1/orgs/acme-corp/members?role=admin&page=1&size=50", http.StatusNotImplemented, ""},
-		{"size above the maximum", "/api/v1/orgs/acme-corp/members?size=500", http.StatusBadRequest, "size"},
-		{"negative page", "/api/v1/orgs/acme-corp/members?page=-1", http.StatusBadRequest, "page"},
-		{"unknown role", "/api/v1/orgs/acme-corp/members?role=boss", http.StatusBadRequest, "role"},
-		{"slug breaks the pattern", "/api/v1/orgs/Acme_Corp/members", http.StatusBadRequest, "slug"},
+		{"me is not implemented yet", http.MethodGet, "/api/v1/me", "", http.StatusNotImplemented, ""},
+		{"my organizations is not implemented yet", http.MethodGet, "/api/v1/me/organizations", "", http.StatusNotImplemented, ""},
+		{"members is not implemented yet", http.MethodGet, "/api/v1/orgs/acme-corp/members?role=admin&page=1&size=50", "", http.StatusNotImplemented, ""},
+		{"size above the maximum", http.MethodGet, "/api/v1/orgs/acme-corp/members?size=500", "", http.StatusBadRequest, "size"},
+		{"negative page", http.MethodGet, "/api/v1/orgs/acme-corp/members?page=-1", "", http.StatusBadRequest, "page"},
+		{"unknown role", http.MethodGet, "/api/v1/orgs/acme-corp/members?role=boss", "", http.StatusBadRequest, "role"},
+		{"slug breaks the pattern", http.MethodGet, "/api/v1/orgs/Acme_Corp/members", "", http.StatusBadRequest, "slug"},
+
+		{"login is not implemented yet", http.MethodPost, "/api/v1/auth/login", `{"email":"a@example.com","password":"x"}`, http.StatusNotImplemented, ""},
+		{"login without password", http.MethodPost, "/api/v1/auth/login", `{"email":"a@example.com"}`, http.StatusBadRequest, "password"},
+		{"login with a password above 128", http.MethodPost, "/api/v1/auth/login", `{"email":"a@example.com","password":"` + long + `"}`, http.StatusBadRequest, "password"},
+		{"login with a malformed email", http.MethodPost, "/api/v1/auth/login", `{"email":"not-an-email","password":"x"}`, http.StatusBadRequest, "email"},
+		{"login with an unknown field", http.MethodPost, "/api/v1/auth/login", `{"email":"a@example.com","password":"x","admin":true}`, http.StatusBadRequest, "body"},
+		{"logout is not implemented yet", http.MethodPost, "/api/v1/auth/logout", "", http.StatusNotImplemented, ""},
+		{"forgot password is not implemented yet", http.MethodPost, "/api/v1/auth/forgot-password", `{"email":"a@example.com"}`, http.StatusNotImplemented, ""},
+		{"forgot password without email", http.MethodPost, "/api/v1/auth/forgot-password", `{}`, http.StatusBadRequest, "email"},
+		{"inspect is not implemented yet", http.MethodPost, "/api/v1/auth/tokens/inspect", `{"token":"` + token + `"}`, http.StatusNotImplemented, ""},
+		{"inspect with a malformed token", http.MethodPost, "/api/v1/auth/tokens/inspect", `{"token":"short"}`, http.StatusBadRequest, "token"},
+		{"reset is not implemented yet", http.MethodPost, "/api/v1/auth/reset-password", `{"token":"` + token + `","password":"long enough"}`, http.StatusNotImplemented, ""},
+		{"reset with a password of 7", http.MethodPost, "/api/v1/auth/reset-password", `{"token":"` + token + `","password":"1234567"}`, http.StatusBadRequest, "password"},
+		{"reset with a password above 128", http.MethodPost, "/api/v1/auth/reset-password", `{"token":"` + token + `","password":"` + long + `"}`, http.StatusBadRequest, "password"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, tt.path, nil)
+			var body io.Reader
+			if tt.body != "" {
+				body = strings.NewReader(tt.body)
+			}
+			req := httptest.NewRequestWithContext(t.Context(), tt.method, tt.path, body)
+			if tt.body != "" {
+				req.Header.Set("Content-Type", "application/json")
+			}
 			rec := httptest.NewRecorder()
 			h.ServeHTTP(rec, req)
 
@@ -144,4 +171,18 @@ func TestContractRouteRejectsWrongMethod(t *testing.T) {
 
 	assert.Equal(t, http.StatusMethodNotAllowed, rec.Code)
 	assert.Equal(t, http.StatusMethodNotAllowed, decodeProblem(t, rec).Status)
+}
+
+// Validation problems name the field and the rule, never the submitted value: it may be a password.
+func TestValidationProblemDoesNotEchoTheValue(t *testing.T) {
+	t.Parallel()
+	secret := "SuperSecret-" + strings.Repeat("x", 120)
+	body := `{"token":"abcdefghijklmnopqrstuvwxyzABCDEFGHIJ0123456","password":"` + secret + `"}`
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/auth/reset-password", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	newRouter(t, fakeDB{}).ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+	assert.NotContains(t, rec.Body.String(), "SuperSecret")
 }

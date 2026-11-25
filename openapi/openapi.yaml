@@ -13,12 +13,146 @@ servers:
 security:
   - session: []
 tags:
+  - name: auth
+    description: Signing in and out, password reset
   - name: me
     description: The signed-in user
   - name: members
     description: People in an organization
 
 paths:
+  /v1/auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Sign in
+      description: |
+        Creates a session and sets the session cookie (ADR 0006). Every failure gets the same 401
+        answer, so it does not reveal whether the email exists. Too many failures from the same
+        IP address, for one email or in total, get 429 (ADR 0013).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "204":
+          description: Signed in.
+          headers:
+            Set-Cookie:
+              $ref: "#/components/headers/SessionCookie"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/InvalidCredentials"
+        "403":
+          $ref: "#/components/responses/CrossOrigin"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Sign out
+      description: Revokes the current session, if any, and always clears the session cookie.
+      security: []
+      responses:
+        "204":
+          description: Signed out.
+          headers:
+            Set-Cookie:
+              $ref: "#/components/headers/ClearedSessionCookie"
+        "403":
+          $ref: "#/components/responses/CrossOrigin"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/auth/forgot-password:
+    post:
+      operationId: requestPasswordReset
+      tags: [auth]
+      summary: Email a password reset link
+      description: |
+        Always 204, whether or not the email belongs to an account. An account with a password gets
+        a link valid for 1 hour; at most 3 emails per account per hour (ADR 0012).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordResetRequest"
+      responses:
+        "204":
+          description: Accepted.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/CrossOrigin"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/auth/tokens/inspect:
+    post:
+      operationId: inspectToken
+      tags: [auth]
+      summary: Check a link token before using it
+      description: |
+        Lets a page say at once that a link is invalid or expired. The token travels in the body,
+        never in a URL, so it stays out of access logs.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TokenRequest"
+      responses:
+        "200":
+          description: The token is valid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenInfo"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/CrossOrigin"
+        "404":
+          $ref: "#/components/responses/InvalidToken"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/auth/reset-password:
+    post:
+      operationId: resetPassword
+      tags: [auth]
+      summary: Set a new password with a reset token
+      description: Uses the token once, sets the password and signs the account out everywhere.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordRequest"
+      responses:
+        "204":
+          description: Password changed. Sign in with the new password.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/CrossOrigin"
+        "404":
+          $ref: "#/components/responses/InvalidToken"
+        default:
+          $ref: "#/components/responses/Error"
+
   /v1/me:
     get:
       operationId: getMe
@@ -31,6 +165,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/me/organizations:
+    get:
+      operationId: listMyOrganizations
+      tags: [me]
+      summary: Organizations of the signed-in user
+      description: Every membership of the signed-in user, by organization name, including deactivated ones.
+      responses:
+        "200":
+          description: The user's organizations.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserOrganizationList"
         "401":
           $ref: "#/components/responses/Unauthorized"
         default:
@@ -115,7 +267,48 @@ components:
         maximum: 100
         default: 20
 
+  headers:
+    SessionCookie:
+      description: "`__Host-session=<token>; Path=/; Max-Age=<seconds>; HttpOnly; Secure; SameSite=Lax`"
+      schema:
+        type: string
+    ClearedSessionCookie:
+      description: "`__Host-session=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`"
+      schema:
+        type: string
+
   responses:
+    InvalidCredentials:
+      description: 'Sign-in failed. Always "Invalid email or password.", whatever the reason.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    TooManyRequests:
+      description: Too many failed sign-ins. Try again after `Retry-After` seconds.
+      headers:
+        Retry-After:
+          description: Seconds until the next attempt is allowed.
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    InvalidToken:
+      description: 'The link is unknown, used or expired. Always "This link is invalid or has expired."'
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    CrossOrigin:
+      description: Rejected because the request came from another site (ADR 0015).
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
     BadRequest:
       description: The request is invalid. `errors` names the fields at fault.
       content:
@@ -179,6 +372,99 @@ components:
     MembershipStatus:
       type: string
       enum: [active, deactivated]
+
+    Email:
+      type: string
+      format: email
+      minLength: 3
+      maxLength: 255
+      description: Compared case-insensitively; stored in lowercase.
+
+    NewPassword:
+      type: string
+      minLength: 8
+      maxLength: 128
+      description: 8 to 128 characters, no other rules (ADR 0011).
+
+    Token:
+      type: string
+      pattern: "^[A-Za-z0-9_-]{43}$"
+      description: A link token from an email (256 bits, base64url).
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      additionalProperties: false
+      properties:
+        email:
+          $ref: "#/components/schemas/Email"
+        password:
+          type: string
+          minLength: 1
+          maxLength: 128
+          description: Not checked against the password rules, so every wrong password gets the same 401.
+
+    PasswordResetRequest:
+      type: object
+      required: [email]
+      additionalProperties: false
+      properties:
+        email:
+          $ref: "#/components/schemas/Email"
+
+    TokenRequest:
+      type: object
+      required: [token]
+      additionalProperties: false
+      properties:
+        token:
+          $ref: "#/components/schemas/Token"
+
+    TokenInfo:
+      type: object
+      required: [type, expiresAt]
+      properties:
+        type:
+          type: string
+          enum: [password_reset]
+        expiresAt:
+          type: string
+          format: date-time
+
+    ResetPasswordRequest:
+      type: object
+      required: [token, password]
+      additionalProperties: false
+      properties:
+        token:
+          $ref: "#/components/schemas/Token"
+        password:
+          $ref: "#/components/schemas/NewPassword"
+
+    UserOrganization:
+      type: object
+      required: [id, name, slug, role, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        role:
+          $ref: "#/components/schemas/Role"
+        status:
+          $ref: "#/components/schemas/MembershipStatus"
+
+    UserOrganizationList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserOrganization"
 
     User:
       type: object
