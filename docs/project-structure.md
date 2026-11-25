@@ -28,7 +28,7 @@ go-next-saas/
 └─ README.md             overview and getting started
 ```
 
-`.gitattributes` marks generated code so GitHub collapses it in pull request diffs. Coming with later issues: `deploy/` (production config, M5). `.cache/` holds scratch output of `make check` (gitignored).
+`.gitattributes` marks generated code so GitHub collapses it in pull request diffs. Coming with later issues: `deploy/` (production config, M5). `.cache/` holds scratch output of `make check` and the API reference from `make docs` (gitignored).
 
 ## `openapi/` — API contract
 
@@ -36,7 +36,7 @@ go-next-saas/
 |---|---|
 | `openapi.yaml` | every endpoint, parameter, schema and error (OpenAPI 3.1, ADR 0005) |
 | `redocly.yaml` | spec lint rules (`make check-spec`) |
-| `package.json` | pins the Redocly CLI used for linting |
+| `package.json` | pins the Redocly CLI used for linting and for the API reference (`make docs`) |
 
 Changing the contract: edit `openapi.yaml`, run `make gen`, commit the spec and the generated code together (`/spec` skill).
 
