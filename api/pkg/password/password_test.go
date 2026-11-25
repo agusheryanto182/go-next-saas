@@ -119,6 +119,8 @@ func TestVerifyRejectsMalformedHash(t *testing.T) {
 		{name: "memory below 8 per thread", encoded: "$argon2id$v=19$m=15,t=1,p=2$" + salt + "$" + key},
 		{name: "memory over limit", encoded: "$argon2id$v=19$m=4294967295,t=1,p=1$" + salt + "$" + key},
 		{name: "time over limit", encoded: "$argon2id$v=19$m=64,t=4294967295,p=1$" + salt + "$" + key},
+		{name: "memory just over limit", encoded: "$argon2id$v=19$m=262145,t=1,p=1$" + salt + "$" + key},
+		{name: "time just over limit", encoded: "$argon2id$v=19$m=64,t=17,p=1$" + salt + "$" + key},
 		{name: "memory overflows uint32", encoded: "$argon2id$v=19$m=4294967296,t=1,p=1$" + salt + "$" + key},
 		{name: "invalid base64 salt", encoded: "$argon2id$v=19$m=64,t=1,p=1$!!!!!!!!!!!!!!!!!!!!!!$" + key},
 		{name: "padded base64 key", encoded: "$argon2id$v=19$m=64,t=1,p=1$" + salt + "$" + key + "="},

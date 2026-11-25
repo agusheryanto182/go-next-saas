@@ -31,8 +31,8 @@ const (
 	// stored hash from making a verification allocate or loop without bound.
 	_minSaltLen = 8
 	_minKeyLen  = 16
-	_maxMemory  = 1 << 20 // KiB, 1 GiB
-	_maxTime    = 64
+	_maxMemory  = 1 << 18 // KiB, 256 MiB
+	_maxTime    = 16
 )
 
 // params are the argon2id cost parameters. memory is in KiB.
