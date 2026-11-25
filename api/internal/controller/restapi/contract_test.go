@@ -11,6 +11,8 @@ import (
 	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/getkin/kin-openapi/routers"
 	"github.com/getkin/kin-openapi/routers/gorillamux"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/agusheryanto182/go-next-saas/api/internal/controller/restapi/v1/gen"
 )
@@ -19,23 +21,17 @@ import (
 func contractRouter(t *testing.T) routers.Router {
 	t.Helper()
 	spec, err := gen.GetSpec()
-	if err != nil {
-		t.Fatalf("load spec: %v", err)
-	}
+	require.NoError(t, err, "load spec")
 	spec.Servers = nil // match paths as written in the spec, without the /api prefix
 	r, err := gorillamux.NewRouter(spec)
-	if err != nil {
-		t.Fatalf("contract router: %v", err)
-	}
+	require.NoError(t, err, "contract router")
 	return r
 }
 
 // assertMatchesContract fails the test if the response status, content type or body is not what the spec allows.
 func assertMatchesContract(t *testing.T, router routers.Router, req *http.Request, rec *httptest.ResponseRecorder) {
 	t.Helper()
-	if err := contractError(t, router, req, rec); err != nil {
-		t.Errorf("response does not match the contract: %v\nbody: %s", err, rec.Body.String())
-	}
+	assert.NoError(t, contractError(t, router, req, rec), "response does not match the contract\nbody: %s", rec.Body.String())
 }
 
 func contractError(t *testing.T, router routers.Router, req *http.Request, rec *httptest.ResponseRecorder) error {
@@ -43,9 +39,7 @@ func contractError(t *testing.T, router routers.Router, req *http.Request, rec *
 	specReq := req.Clone(req.Context())
 	specReq.URL.Path = strings.TrimPrefix(req.URL.Path, "/api")
 	route, params, err := router.FindRoute(specReq)
-	if err != nil {
-		t.Fatalf("no spec operation for %s %s: %v", req.Method, req.URL.Path, err)
-	}
+	require.NoError(t, err, "no spec operation for %s %s", req.Method, req.URL.Path)
 	in := &openapi3filter.ResponseValidationInput{
 		RequestValidationInput: &openapi3filter.RequestValidationInput{
 			Request: specReq, PathParams: params, Route: route,
@@ -60,6 +54,7 @@ func contractError(t *testing.T, router routers.Router, req *http.Request, rec *
 
 // The checker itself must catch violations, or every contract assertion above would pass vacuously.
 func TestContractCheckerCatchesViolations(t *testing.T) {
+	t.Parallel()
 	contract := contractRouter(t)
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/me", nil)
 
@@ -77,17 +72,17 @@ func TestContractCheckerCatchesViolations(t *testing.T) {
 	}
 	for name, write := range tests {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			rec := httptest.NewRecorder()
 			write(rec)
-			if err := contractError(t, contract, req, rec); err == nil {
-				t.Error("violation not detected")
-			}
+			assert.Error(t, contractError(t, contract, req, rec), "violation not detected")
 		})
 	}
 }
 
 // OpenAPI 3.1 nullability (`type: [string, "null"]`) must be understood by the validator.
 func TestContractNullableField(t *testing.T) {
+	t.Parallel()
 	contract := contractRouter(t)
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/me", nil)
 	user := `{"id":"0193b5a4-6c2e-7d4a-9f1e-2b3c4d5e6f70","email":"a@example.com","fullName":"A","createdAt":"2026-11-23T10:00:00Z","phone":%s}`
@@ -97,21 +92,18 @@ func TestContractNullableField(t *testing.T) {
 		rec.Header().Set("Content-Type", "application/json")
 		rec.WriteHeader(http.StatusOK)
 		_, _ = rec.WriteString(strings.Replace(user, "%s", phone, 1))
-		if err := contractError(t, contract, req, rec); err != nil {
-			t.Errorf("phone %s rejected: %v", phone, err)
-		}
+		assert.NoError(t, contractError(t, contract, req, rec), "phone %s rejected", phone)
 	}
 
 	rec := httptest.NewRecorder()
 	rec.Header().Set("Content-Type", "application/json")
 	rec.WriteHeader(http.StatusOK)
 	_, _ = rec.WriteString(strings.Replace(user, "%s", `42`, 1))
-	if err := contractError(t, contract, req, rec); err == nil {
-		t.Error("phone 42 accepted; only a string or null is allowed")
-	}
+	assert.Error(t, contractError(t, contract, req, rec), "phone 42 accepted; only a string or null is allowed")
 }
 
 func TestContractRoutes(t *testing.T) {
+	t.Parallel()
 	h := newRouter(t, fakeDB{})
 	contract := contractRouter(t)
 
@@ -130,16 +122,16 @@ func TestContractRoutes(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, tt.path, nil)
 			rec := httptest.NewRecorder()
 			h.ServeHTTP(rec, req)
 
 			p := decodeProblemKeepBody(t, rec)
-			if rec.Code != tt.wantStatus || p.Status != tt.wantStatus {
-				t.Fatalf("status = %d, problem = %+v", rec.Code, p)
-			}
-			if tt.wantField != "" && p.Errors[tt.wantField] == "" {
-				t.Errorf("errors = %v, want an entry for %q", p.Errors, tt.wantField)
+			require.Equal(t, tt.wantStatus, rec.Code)
+			require.Equal(t, tt.wantStatus, p.Status)
+			if tt.wantField != "" {
+				assert.NotEmpty(t, p.Errors[tt.wantField], "errors = %v, want an entry for %q", p.Errors, tt.wantField)
 			}
 			assertMatchesContract(t, contract, req, rec)
 		})
@@ -147,9 +139,9 @@ func TestContractRoutes(t *testing.T) {
 }
 
 func TestContractRouteRejectsWrongMethod(t *testing.T) {
+	t.Parallel()
 	rec := serve(t, newRouter(t, fakeDB{}), http.MethodPost, "/api/v1/me")
 
-	if p := decodeProblem(t, rec); rec.Code != http.StatusMethodNotAllowed || p.Status != http.StatusMethodNotAllowed {
-		t.Errorf("status = %d, problem = %+v", rec.Code, p)
-	}
+	assert.Equal(t, http.StatusMethodNotAllowed, rec.Code)
+	assert.Equal(t, http.StatusMethodNotAllowed, decodeProblem(t, rec).Status)
 }

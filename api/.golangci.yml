@@ -9,18 +9,39 @@ linters:
   enable:
     - bodyclose
     - contextcheck
+    - cyclop
     - depguard
+    - err113
     - errorlint
+    - exhaustive
+    - gochecknoglobals
+    - gochecknoinits
+    - gocognit
     - gocritic
     - gosec
     - misspell
     - nilerr
     - noctx
+    - nolintlint
+    - paralleltest
+    - revive
     - rowserrcheck
     - sqlclosecheck
+    - thelper
+    - tparallel
     - unconvert
+    - unparam
     - usestdlibvars
+  # Correctness and consistency linters from go-clean-template (ADR 0003); its style-only ones
+  # (wsl, nlreturn, mnd, funlen, godot) are left out.
   settings:
+    cyclop:
+      max-complexity: 15
+    gocognit:
+      min-complexity: 20
+    nolintlint:
+      require-explanation: true
+      require-specific: true
     # Layer rules from ADR 0003. A violation fails `make check` and CI.
     depguard:
       rules:
@@ -69,7 +90,7 @@ linters:
       - std-error-handling
     rules:
       - path: _test\.go
-        linters: [gosec, noctx]
+        linters: [err113, gosec, noctx]
 
 formatters:
   enable:

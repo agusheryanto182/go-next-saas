@@ -9,6 +9,7 @@ tool (
 	github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen
 	github.com/oasdiff/oasdiff
 	github.com/sqlc-dev/sqlc/cmd/sqlc
+	go.uber.org/mock/mockgen
 	golang.org/x/vuln/cmd/govulncheck
 	mvdan.cc/gofumpt
 )
@@ -254,6 +255,7 @@ require (
 	go.augendre.info/arangolint v0.4.0 // indirect
 	go.augendre.info/fatcontext v0.10.1 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
+	go.uber.org/mock v0.6.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.6 // indirect

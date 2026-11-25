@@ -2,9 +2,11 @@ package config
 
 import (
 	"log/slog"
-	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func setValidEnv(t *testing.T) {
@@ -13,16 +15,15 @@ func setValidEnv(t *testing.T) {
 	t.Setenv("APP_BASE_URL", "http://localhost:3000")
 }
 
+//nolint:paralleltest // t.Setenv cannot be used in parallel tests
 func TestNewDefaults(t *testing.T) {
 	setValidEnv(t)
 
 	cfg, err := New()
-	if err != nil {
-		t.Fatalf("New() error = %v", err)
-	}
-	if cfg.HTTPAddr != ":8080" || cfg.ShutdownTimeout != 15*time.Second || cfg.SlogLevel() != slog.LevelInfo {
-		t.Errorf("unexpected defaults: %+v", cfg)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, ":8080", cfg.HTTPAddr)
+	assert.Equal(t, 15*time.Second, cfg.ShutdownTimeout)
+	assert.Equal(t, slog.LevelInfo, cfg.SlogLevel())
 }
 
 func TestNewRejectsInvalidConfig(t *testing.T) {
@@ -45,9 +46,8 @@ func TestNewRejectsInvalidConfig(t *testing.T) {
 			}
 
 			_, err := New()
-			if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
-				t.Fatalf("New() error = %v, want it to mention %s", err, tt.wantErr)
-			}
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErr)
 		})
 	}
 }

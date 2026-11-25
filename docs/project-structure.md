@@ -59,28 +59,34 @@ api/
 │  │     ├─ v1.go                        mounts the contract routes with request validation
 │  │     ├─ handler.go                   implements the generated strict server interface
 │  │     └─ gen/                         oapi-codegen config; api.gen.go is **generated**
-│  ├─ entity/                            business models used by every layer
-│  ├─ usecase/contracts.go               use-case interfaces; one sub-folder per domain will follow
+│  ├─ entity/                            business models with their invariants; errors.go = domain errors
+│  ├─ usecase/
+│  │  ├─ contracts.go                    use-case interfaces; one sub-folder per domain will follow (M1)
+│  │  └─ mocks_*_test.go                 **generated** gomock mocks of both contracts.go files
 │  └─ repo/
-│     ├─ contracts.go                    storage and external-service interfaces; `Scope` (user and organization of a unit of work)
+│     ├─ contracts.go                    storage interfaces, the unit of work (`Transactor`) and its `Scope`
 │     └─ persistent/                     PostgreSQL
-│        ├─ store.go                     unit of work: transaction + transaction-local scope for row-level security
+│        ├─ transactor.go                unit of work: transaction + transaction-local scope for row-level security
+│        ├─ convert.go                   ID parsing, NULL mapping, unique-violation check shared by repositories
+│        ├─ <domain>/                    one repository per domain (user, organization, membership): <domain>.go + tracing.go
 │        ├─ migrate.go                   applies the embedded migrations with goose
-│        ├─ store_integration_test.go    real PostgreSQL: migrations round trip, tenant isolation
+│        ├─ pgtest/                      PostgreSQL container with production roles, for integration tests
+│        ├─ *_integration_test.go        migrations round trip; unit of work and tenant isolation through the repositories
 │        └─ gen/                         **generated** by sqlc from queries/ and migrations/
 ├─ pkg/                                  generic infrastructure, no application imports
 │  ├─ httpserver/                        http.Server with timeouts and shutdown
 │  ├─ logger/                            slog JSON logger with trace IDs
-│  ├─ otel/                              OpenTelemetry setup
+│  ├─ otel/                              OpenTelemetry setup; span helpers for tracing decorators
 │  └─ postgres/                          pgx connection pool with query tracing
 ├─ migrations/                           goose SQL migrations (embedded into the binary by embed.go)
 ├─ queries/                              SQL queries for sqlc, one file per domain
 ├─ sqlc.yaml                             sqlc settings: schema from migrations/, output to repo/persistent/gen
 ├─ .squawk.toml                          migration lint settings
-├─ tools/go.mod                          pinned dev tools: golangci-lint, gofumpt, govulncheck, oapi-codegen, sqlc
+├─ tools/go.mod                          pinned dev tools: golangci-lint, gofumpt, govulncheck, mockgen, oapi-codegen, oasdiff, sqlc
 ├─ .golangci.yml                         lint rules, including the layer rules (depguard)
 ├─ Dockerfile                            multi-stage build → distroless, non-root image
-├─ AGENTS.md / CLAUDE.md                 API rules for agents
+├─ AGENTS.md / CLAUDE.md                 API rules for agents: where code goes, conventions, checklists
+├─ NOTICE                                attribution for patterns adapted from go-clean-template (MIT)
 └─ go.mod / go.sum                       module and pinned dependencies
 ```
 
@@ -186,7 +192,7 @@ Run `make help` for the list. Targets for parts not built yet say which issue ad
 | `make fmt` | format Go code |
 | `make check-fast AREAS="api web spec"` | lint and unit tests for the given areas (the stop hook passes only changed ones) |
 | `make check` | everything CI runs except end-to-end tests: all areas, vulnerability scan, web production build |
-| `make gen` | regenerate Go server code and TypeScript types from the contract, and Go query code from SQL |
+| `make gen` | regenerate Go server code and TypeScript types from the contract, Go query code from SQL, and mocks from the `contracts.go` interfaces |
 | `make check-spec` | lint the contract and fail if generated code is out of date |
 | `make test-integration` | API tests against a real PostgreSQL in Docker (testcontainers) |
 | `make check-breaking BASE=origin/main` | fail on contract changes that break existing clients (oasdiff), compared to `BASE` |
