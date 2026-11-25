@@ -156,7 +156,7 @@ Local-only and gitignored: `settings.local.json`, `worktrees/` (agent view workt
 |---|---|
 | `ISSUE_TEMPLATE/task.md` | spec, acceptance criteria, out of scope, `depends_on` / `parallel` / `conflicts_with` |
 | `pull_request_template.md` | linked issue, what changed, how it was tested, metrics |
-| `workflows/ci.yml` | CI on every pull request and push to `main`: jobs `api`, `web`, `spec`, `e2e` (required to merge). Each job runs the same `make` targets as local development. |
+| `workflows/ci.yml` | CI on every pull request and push to `main`: jobs `api`, `web`, `spec`, `e2e` run the same `make` targets as local development; `dependency-review` (pull requests only) fails when a pull request adds or changes a dependency with a known vulnerability, in any ecosystem. All five are required to merge. |
 | `workflows/claude.yml` | `@claude` in issues and pull requests (Level 3, see `docs/agentic-workflow.md`) |
 | `workflows/claude-review.yml` | automatic pull request review with the `code-review` plugin (not a required check) |
 | `dependabot.yml` | weekly grouped dependency updates per ecosystem and directory, 14-day cooldown, `chore(deps)` commits |
