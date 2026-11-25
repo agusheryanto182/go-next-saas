@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/mail"
 	"net/url"
 	"time"
 
@@ -25,6 +26,22 @@ type Config struct {
 
 	// OTLPEndpoint enables trace export when set, e.g. http://localhost:4318.
 	OTLPEndpoint string `env:"OTEL_EXPORTER_OTLP_ENDPOINT"`
+
+	SMTP SMTP `envPrefix:"SMTP_"`
+	// MailFrom is the sender of every email, e.g. `go-next-saas <no-reply@example.com>`.
+	MailFrom string `env:"MAIL_FROM,required,notEmpty"`
+}
+
+// SMTP is the outgoing mail server (ADR 0010). Mailpit locally.
+type SMTP struct {
+	Host     string `env:"HOST,required,notEmpty"`
+	Port     int    `env:"PORT"     envDefault:"587"`
+	Username string `env:"USERNAME"` // empty: no authentication
+	Password string `env:"PASSWORD"`
+	// TLS is none, starttls (production providers on 587) or tls (implicit TLS, usually 465).
+	TLS            string        `env:"TLS"             envDefault:"starttls"`
+	ConnectTimeout time.Duration `env:"CONNECT_TIMEOUT" envDefault:"10s"`
+	SendTimeout    time.Duration `env:"SEND_TIMEOUT"    envDefault:"30s"`
 }
 
 // ErrInvalid is wrapped by every validation failure.
@@ -65,6 +82,32 @@ func (c Config) validate() error {
 	}
 	if c.ShutdownTimeout <= 0 {
 		errs = append(errs, fmt.Errorf("SHUTDOWN_TIMEOUT: %w: must be positive", ErrInvalid))
+	}
+	errs = append(errs, c.SMTP.validate())
+	if _, err := mail.ParseAddress(c.MailFrom); err != nil {
+		errs = append(errs, fmt.Errorf("MAIL_FROM %q: %w: use an address like `Name <no-reply@example.com>`", c.MailFrom, ErrInvalid))
+	}
+	return errors.Join(errs...)
+}
+
+func (s SMTP) validate() error {
+	var errs []error
+	if s.Port < 1 || s.Port > 65535 {
+		errs = append(errs, fmt.Errorf("SMTP_PORT %d: %w: must be between 1 and 65535", s.Port, ErrInvalid))
+	}
+	switch s.TLS {
+	case "none", "starttls", "tls":
+	default:
+		errs = append(errs, fmt.Errorf("SMTP_TLS %q: %w: use none, starttls or tls", s.TLS, ErrInvalid))
+	}
+	if (s.Username == "") != (s.Password == "") {
+		errs = append(errs, fmt.Errorf("SMTP_USERNAME and SMTP_PASSWORD: %w: set both or neither", ErrInvalid))
+	}
+	if s.ConnectTimeout <= 0 {
+		errs = append(errs, fmt.Errorf("SMTP_CONNECT_TIMEOUT: %w: must be positive", ErrInvalid))
+	}
+	if s.SendTimeout <= 0 {
+		errs = append(errs, fmt.Errorf("SMTP_SEND_TIMEOUT: %w: must be positive", ErrInvalid))
 	}
 	return errors.Join(errs...)
 }

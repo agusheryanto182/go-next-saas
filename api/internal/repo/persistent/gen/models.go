@@ -27,6 +27,19 @@ type Organization struct {
 	UpdatedAt time.Time
 }
 
+type OutboxEmail struct {
+	ID            uuid.UUID
+	Kind          string
+	ToEmail       string
+	Payload       []byte
+	Status        string
+	Attempts      int32
+	NextAttemptAt time.Time
+	SentAt        *time.Time
+	LastError     *string
+	CreatedAt     time.Time
+}
+
 type User struct {
 	ID           uuid.UUID
 	Email        string
