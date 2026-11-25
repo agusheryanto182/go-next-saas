@@ -46,6 +46,29 @@ set -a; . ./.env; set +a                              # load .env into this shel
 
 If a port is taken (for example by another project's PostgreSQL), change `POSTGRES_PORT`, `MAILPIT_*_PORT`, `API_PORT` or `WEB_PORT` in `.env` and the matching URLs.
 
+**Development accounts**
+
+`docker compose --profile app up` creates them automatically; with the day-to-day setup, run `make migrate` and `make seed` (both are safe to repeat). Seeding only runs against a local database. Every account's password is **`dev-password`**.
+
+| Email | Acme (`acme`) | Globex (`globex`) |
+|---|---|---|
+| alice@acme.test | owner | |
+| dina@acme.test | admin | |
+| edo@acme.test | member | |
+| fajar@acme.test | member, deactivated | |
+| bob@globex.test | | owner |
+| carol@example.test | member | member |
+
+**Creating an organization (production)**
+
+There is no sign-up. An operator creates each organization and its owner with the API binary, as the app role (`DATABASE_URL`); the password is read from standard input without echo, so it stays out of the shell history and the environment (ADR 0012):
+
+```bash
+app create-org -name "Acme" -slug acme -owner-email you@example.com -owner-name "Your Name" -owner-password-stdin
+```
+
+An existing account with that email is reused and keeps its password; an existing slug changes nothing.
+
 **Checks**
 
 ```bash
