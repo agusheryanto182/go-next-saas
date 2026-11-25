@@ -111,6 +111,21 @@ jobs:
             make check-breaking BASE="origin/$BASE_REF"
           fi
 
+  # Dependencies a pull request adds or changes, in every ecosystem (Go, npm, Actions, Docker), from
+  # GitHub's dependency graph: fails on any known vulnerability, including development dependencies,
+  # which run in CI and on developer machines. govulncheck (api job) adds reachability for Go.
+  dependency-review:
+    name: dependency-review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: low
+          fail-on-scopes: runtime, development, unknown
+          show-patched-versions: true
+
   e2e:
     name: e2e
     runs-on: ubuntu-latest
