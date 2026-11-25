@@ -73,14 +73,20 @@ func run(args []string, stdout, stderr io.Writer) int {
 		name, rest = args[0], args[1:]
 	}
 	if name == "help" {
+		if len(rest) > 0 {
+			fmt.Fprintf(stderr, "app help: unexpected argument %q\n\n", rest[0])
+			printUsage(stderr, nil)
+			return 2
+		}
 		printUsage(stdout, nil)
 		return 0
 	}
 
 	var cmd *command
-	for _, c := range commands() {
-		if c.name == name {
-			cmd = &c
+	cmds := commands()
+	for i := range cmds {
+		if cmds[i].name == name {
+			cmd = &cmds[i]
 			break
 		}
 	}

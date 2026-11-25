@@ -29,6 +29,7 @@ func TestRunUsage(t *testing.T) {
 		{name: "old -migrate flag", args: []string{"-migrate"}, wantCode: 2, wantStderr: "flag provided but not defined: -migrate"},
 		{name: "old -healthcheck flag", args: []string{"-healthcheck"}, wantCode: 2, wantStderr: "flag provided but not defined: -healthcheck"},
 		{name: "bad subcommand flag", args: []string{"migrate", "-x"}, wantCode: 2, wantStderr: "flag provided but not defined: -x"},
+		{name: "help with argument", args: []string{"help", "migrate"}, wantCode: 2, wantStderr: `unexpected argument "migrate"`},
 		{name: "extra argument", args: []string{"healthcheck", "now"}, wantCode: 2, wantStderr: `unexpected argument "now"`},
 	}
 	for _, tt := range tests {
