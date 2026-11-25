@@ -63,6 +63,11 @@ services:
       DATABASE_URL: postgres://saas_app:${POSTGRES_APP_PASSWORD:-saas_app}@postgres:5432/${POSTGRES_DB:-saas}?sslmode=disable
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      # Mailpit inside the compose network: no TLS, no authentication.
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      SMTP_TLS: none
+      MAIL_FROM: ${MAIL_FROM:-go-next-saas <no-reply@go-next-saas.local>}
     ports:
       - "127.0.0.1:${API_PORT:-8080}:8080"
     depends_on:
@@ -70,6 +75,8 @@ services:
         condition: service_completed_successfully
       seed:
         condition: service_completed_successfully
+      mailpit:
+        condition: service_started
 
   web:
     profiles: [app]

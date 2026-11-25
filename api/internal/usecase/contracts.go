@@ -14,6 +14,16 @@ import (
 //go:generate go tool -modfile=../../tools/go.mod mockgen -source=contracts.go -destination=./mocks_usecase_test.go -package=usecase_test
 
 type (
+	// Mail sends the email outbox (ADR 0010). The worker in internal/app calls it.
+	Mail interface {
+		// SendDue claims due emails and sends them one at a time, outside any transaction, then marks
+		// each sent or reschedules it. It returns how many were claimed; zero means none was due.
+		// Once ctx ends it finishes the email in flight and releases the rest, so they cost no attempt.
+		SendDue(ctx context.Context) (int, error)
+		// Maintain clears the payloads of failed emails after 1 hour and purges sent emails after 30 days.
+		Maintain(ctx context.Context) error
+	}
+
 	// Organization creates organizations. The development seed and `app create-org` use it (ADR 0012).
 	Organization interface {
 		// Create creates the organization, its owner and its other members in one unit of work. A user

@@ -12,6 +12,7 @@ package usecase_test
 import (
 	context "context"
 	reflect "reflect"
+	time "time"
 
 	entity "github.com/agusheryanto182/go-next-saas/api/internal/entity"
 	repo "github.com/agusheryanto182/go-next-saas/api/internal/repo"
@@ -136,6 +137,169 @@ func (m *MockPasswordHasher) VerifyDummy(ctx context.Context, password string) e
 func (mr *MockPasswordHasherMockRecorder) VerifyDummy(ctx, password any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VerifyDummy", reflect.TypeOf((*MockPasswordHasher)(nil).VerifyDummy), ctx, password)
+}
+
+// MockOutboxRepo is a mock of OutboxRepo interface.
+type MockOutboxRepo struct {
+	ctrl     *gomock.Controller
+	recorder *MockOutboxRepoMockRecorder
+	isgomock struct{}
+}
+
+// MockOutboxRepoMockRecorder is the mock recorder for MockOutboxRepo.
+type MockOutboxRepoMockRecorder struct {
+	mock *MockOutboxRepo
+}
+
+// NewMockOutboxRepo creates a new mock instance.
+func NewMockOutboxRepo(ctrl *gomock.Controller) *MockOutboxRepo {
+	mock := &MockOutboxRepo{ctrl: ctrl}
+	mock.recorder = &MockOutboxRepoMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockOutboxRepo) EXPECT() *MockOutboxRepoMockRecorder {
+	return m.recorder
+}
+
+// ClaimDue mocks base method.
+func (m *MockOutboxRepo) ClaimDue(ctx context.Context) ([]entity.Email, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ClaimDue", ctx)
+	ret0, _ := ret[0].([]entity.Email)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ClaimDue indicates an expected call of ClaimDue.
+func (mr *MockOutboxRepoMockRecorder) ClaimDue(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClaimDue", reflect.TypeOf((*MockOutboxRepo)(nil).ClaimDue), ctx)
+}
+
+// ClearFailedPayloads mocks base method.
+func (m *MockOutboxRepo) ClearFailedPayloads(ctx context.Context, createdBefore time.Time) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ClearFailedPayloads", ctx, createdBefore)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ClearFailedPayloads indicates an expected call of ClearFailedPayloads.
+func (mr *MockOutboxRepoMockRecorder) ClearFailedPayloads(ctx, createdBefore any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClearFailedPayloads", reflect.TypeOf((*MockOutboxRepo)(nil).ClearFailedPayloads), ctx, createdBefore)
+}
+
+// Enqueue mocks base method.
+func (m *MockOutboxRepo) Enqueue(ctx context.Context, e entity.Email) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Enqueue", ctx, e)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Enqueue indicates an expected call of Enqueue.
+func (mr *MockOutboxRepoMockRecorder) Enqueue(ctx, e any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Enqueue", reflect.TypeOf((*MockOutboxRepo)(nil).Enqueue), ctx, e)
+}
+
+// MarkSent mocks base method.
+func (m *MockOutboxRepo) MarkSent(ctx context.Context, id string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MarkSent", ctx, id)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// MarkSent indicates an expected call of MarkSent.
+func (mr *MockOutboxRepoMockRecorder) MarkSent(ctx, id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MarkSent", reflect.TypeOf((*MockOutboxRepo)(nil).MarkSent), ctx, id)
+}
+
+// PurgeSent mocks base method.
+func (m *MockOutboxRepo) PurgeSent(ctx context.Context, sentBefore time.Time) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PurgeSent", ctx, sentBefore)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// PurgeSent indicates an expected call of PurgeSent.
+func (mr *MockOutboxRepoMockRecorder) PurgeSent(ctx, sentBefore any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PurgeSent", reflect.TypeOf((*MockOutboxRepo)(nil).PurgeSent), ctx, sentBefore)
+}
+
+// Release mocks base method.
+func (m *MockOutboxRepo) Release(ctx context.Context, ids []string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Release", ctx, ids)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Release indicates an expected call of Release.
+func (mr *MockOutboxRepoMockRecorder) Release(ctx, ids any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Release", reflect.TypeOf((*MockOutboxRepo)(nil).Release), ctx, ids)
+}
+
+// Reschedule mocks base method.
+func (m *MockOutboxRepo) Reschedule(ctx context.Context, id, lastError string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Reschedule", ctx, id, lastError)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Reschedule indicates an expected call of Reschedule.
+func (mr *MockOutboxRepoMockRecorder) Reschedule(ctx, id, lastError any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reschedule", reflect.TypeOf((*MockOutboxRepo)(nil).Reschedule), ctx, id, lastError)
+}
+
+// MockMailer is a mock of Mailer interface.
+type MockMailer struct {
+	ctrl     *gomock.Controller
+	recorder *MockMailerMockRecorder
+	isgomock struct{}
+}
+
+// MockMailerMockRecorder is the mock recorder for MockMailer.
+type MockMailerMockRecorder struct {
+	mock *MockMailer
+}
+
+// NewMockMailer creates a new mock instance.
+func NewMockMailer(ctrl *gomock.Controller) *MockMailer {
+	mock := &MockMailer{ctrl: ctrl}
+	mock.recorder = &MockMailerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockMailer) EXPECT() *MockMailerMockRecorder {
+	return m.recorder
+}
+
+// Send mocks base method.
+func (m *MockMailer) Send(ctx context.Context, e entity.Email) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Send", ctx, e)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Send indicates an expected call of Send.
+func (mr *MockMailerMockRecorder) Send(ctx, e any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockMailer)(nil).Send), ctx, e)
 }
 
 // MockUserRepo is a mock of UserRepo interface.

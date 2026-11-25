@@ -12,6 +12,9 @@ import (
 	"github.com/agusheryanto182/go-next-saas/api/internal/controller/restapi"
 	"github.com/agusheryanto182/go-next-saas/api/internal/repo"
 	"github.com/agusheryanto182/go-next-saas/api/internal/repo/persistent"
+	"github.com/agusheryanto182/go-next-saas/api/internal/repo/persistent/outbox"
+	webmail "github.com/agusheryanto182/go-next-saas/api/internal/repo/webapi/mail"
+	"github.com/agusheryanto182/go-next-saas/api/internal/usecase/mail"
 	"github.com/agusheryanto182/go-next-saas/api/pkg/httpserver"
 	"github.com/agusheryanto182/go-next-saas/api/pkg/otel"
 	"github.com/agusheryanto182/go-next-saas/api/pkg/password"
@@ -39,6 +42,35 @@ func Run(ctx context.Context, cfg config.Config, log *slog.Logger) (err error) {
 		return err
 	}
 	defer pool.Close()
+
+	mailer, err := webmail.New(webmail.Config{
+		Host:           cfg.SMTP.Host,
+		Port:           cfg.SMTP.Port,
+		Username:       cfg.SMTP.Username,
+		Password:       cfg.SMTP.Password,
+		TLS:            webmail.TLSMode(cfg.SMTP.TLS),
+		ConnectTimeout: cfg.SMTP.ConnectTimeout,
+		SendTimeout:    cfg.SMTP.SendTimeout,
+		From:           cfg.MailFrom,
+		AppBaseURL:     cfg.AppBaseURL,
+	})
+	if err != nil {
+		return err
+	}
+	tx := persistent.NewTransactor(pool)
+	worker := newMailWorker(mail.New(tx, outbox.New(), mailer, log), log)
+
+	// The worker stops before the pool closes (defers run in reverse), after its email in flight.
+	workerCtx, stopWorker := context.WithCancel(ctx)
+	workerDone := make(chan struct{})
+	go func() {
+		defer close(workerDone)
+		worker.Run(workerCtx)
+	}()
+	defer func() {
+		stopWorker()
+		<-workerDone
+	}()
 
 	router, err := restapi.NewRouter(restapi.Deps{Log: log, DB: pool})
 	if err != nil {

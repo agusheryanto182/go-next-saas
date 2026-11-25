@@ -17,6 +17,59 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
+// MockMail is a mock of Mail interface.
+type MockMail struct {
+	ctrl     *gomock.Controller
+	recorder *MockMailMockRecorder
+	isgomock struct{}
+}
+
+// MockMailMockRecorder is the mock recorder for MockMail.
+type MockMailMockRecorder struct {
+	mock *MockMail
+}
+
+// NewMockMail creates a new mock instance.
+func NewMockMail(ctrl *gomock.Controller) *MockMail {
+	mock := &MockMail{ctrl: ctrl}
+	mock.recorder = &MockMailMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockMail) EXPECT() *MockMailMockRecorder {
+	return m.recorder
+}
+
+// Maintain mocks base method.
+func (m *MockMail) Maintain(ctx context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Maintain", ctx)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Maintain indicates an expected call of Maintain.
+func (mr *MockMailMockRecorder) Maintain(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Maintain", reflect.TypeOf((*MockMail)(nil).Maintain), ctx)
+}
+
+// SendDue mocks base method.
+func (m *MockMail) SendDue(ctx context.Context) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SendDue", ctx)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SendDue indicates an expected call of SendDue.
+func (mr *MockMailMockRecorder) SendDue(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendDue", reflect.TypeOf((*MockMail)(nil).SendDue), ctx)
+}
+
 // MockOrganization is a mock of Organization interface.
 type MockOrganization struct {
 	ctrl     *gomock.Controller

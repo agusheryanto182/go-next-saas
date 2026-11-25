@@ -4,6 +4,7 @@ package repo
 
 import (
 	"context"
+	"time"
 
 	"github.com/agusheryanto182/go-next-saas/api/internal/entity"
 )
@@ -41,6 +42,38 @@ type (
 		VerifyDummy(ctx context.Context, password string) error
 		// NeedsRehash reports whether encoded was made with other parameters than Hash uses now.
 		NeedsRehash(encoded string) bool
+	}
+
+	// OutboxRepo stores emails to send (ADR 0010). The table is global: use an empty scope.
+	OutboxRepo interface {
+		// Enqueue inserts e as pending and due now. Call it in the unit of work of the change that
+		// causes the email, so the email exists if and only if that change commits.
+		Enqueue(ctx context.Context, e entity.Email) error
+		// ClaimDue leases up to 10 due emails for 5 minutes and counts the attempt. Commit the claim
+		// before sending: rows claimed by an open transaction are skipped by other claimers. Due emails
+		// that are out of attempts, or password resets older than their 1-hour token, fail instead and
+		// are not returned. Send each within the lease.
+		ClaimDue(ctx context.Context) ([]entity.Email, error)
+		// Release returns claimed emails that were never tried: the attempt is undone and they are due now.
+		Release(ctx context.Context, ids []string) error
+		// MarkSent records the email as sent and clears its payload.
+		MarkSent(ctx context.Context, id string) error
+		// Reschedule records a failed attempt: the next one is due after 1, 2, 4… minutes, and the
+		// email fails for good after its 8th attempt (clearing its payload). lastError must hold no
+		// payload values.
+		Reschedule(ctx context.Context, id, lastError string) error
+		// ClearFailedPayloads clears the payload of failed emails created before createdBefore (a safety
+		// net: failing clears it already).
+		ClearFailedPayloads(ctx context.Context, createdBefore time.Time) (int64, error)
+		// PurgeSent deletes emails sent before sentBefore.
+		PurgeSent(ctx context.Context, sentBefore time.Time) (int64, error)
+	}
+
+	// Mailer renders an email's template and sends it (repo/webapi/mail). It does no I/O on the
+	// database and must be called outside InScope.
+	Mailer interface {
+		// Send delivers e once; its Message-ID is derived from e.ID.
+		Send(ctx context.Context, e entity.Email) error
 	}
 
 	// UserRepo stores global user identities.
