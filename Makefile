@@ -40,10 +40,11 @@ reset-db: ## Delete local database data and start again (re-runs role setup)
 migrate: ## Apply pending migrations as the owner role (needs MIGRATION_DATABASE_URL, e.g. from .env)
 	cd api && go run ./cmd/app -migrate
 
-gen: ## Regenerate code from the OpenAPI contract and the SQL queries
+gen: ## Regenerate code from the OpenAPI contract, the SQL queries and the contracts.go interfaces (mocks)
 	$(OAPI_GEN) -o api.gen.go $(SPEC_FROM_OAPI)
 	cd web && npm run --silent gen:api
 	cd api && $(GO_TOOL) sqlc generate
+	cd api && go generate ./internal/...
 
 fmt: ## Format Go code
 	cd api && $(GO_TOOL) golangci-lint fmt ./...
@@ -56,9 +57,13 @@ check: ## Everything CI runs except end-to-end tests
 check-fast: ## Format, lint and unit tests for AREAS (default: all)
 	@for area in $(AREAS); do $(MAKE) --no-print-directory check-$$area; done
 
-check-api: ## Lint (incl. format and layer rules), SQL code in sync, migration lint, unit tests
+check-api: ## Lint (incl. format and layer rules), generated SQL code and mocks in sync, migration lint, unit tests
 	cd api && $(GO_TOOL) golangci-lint run ./...
 	cd api && $(GO_TOOL) sqlc diff || { echo "Generated SQL code is out of date with api/queries or api/migrations: run 'make gen'."; exit 1; }
+	@mkdir -p $(GEN_CHECK)/mocks && cp api/internal/usecase/mocks_*_test.go $(GEN_CHECK)/mocks/ 2>/dev/null; \
+	  cd api && go generate ./internal/... && for f in internal/usecase/mocks_*_test.go; do \
+	    cmp -s $$f $(GEN_CHECK)/mocks/$$(basename $$f) || { echo "Mocks were out of date with contracts.go; regenerated $$f, review it."; exit 1; }; \
+	  done
 	cd api && $(SQUAWK) -c .squawk.toml migrations/*.sql
 	cd api && go test -race ./...
 

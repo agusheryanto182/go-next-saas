@@ -11,9 +11,8 @@ Before coding, read `AGENTS.md`, `api/AGENTS.md`, `docs/architecture.md` and the
 
 How to work:
 1. Restate the acceptance criteria as a checklist.
-2. SQL first: migration in `api/migrations/` (reviewed by Squawk), queries in `api/queries/`, then `make gen`.
-3. Use case in `internal/usecase/<domain>/` behind an interface in `contracts.go`; unit tests with mocks.
-4. Controller: implement the generated strict-server method; map errors to problem details.
-5. Organization data always goes through the unit of work (row-level security). Add a tenant-isolation test for any new organization-scoped table or query.
-6. Integration test for the endpoint against a real PostgreSQL (`make test-integration`).
-7. `make check` must pass. Report what you changed, what you tested, and anything left open.
+2. Follow the checklist in `api/AGENTS.md` ("Adding a use case" or "Adding a whole domain"): entity, migration and queries, repository with `tracing.go`, use case with `tracing.go`, `make gen`, tests against the generated mocks, wiring.
+3. Every query runs inside `repo.Transactor.InScope`; repositories refuse to run without it. Add a tenant-isolation test for any new organization-scoped table or query.
+4. Controller: implement the generated strict-server method following the handler contract in `api/AGENTS.md`; map `entity.Err*` sentinels to problem details.
+5. Integration test for the endpoint against a real PostgreSQL (`make test-integration`).
+6. `make check` must pass. Report what you changed, what you tested, and anything left open.

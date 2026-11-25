@@ -10,6 +10,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/agusheryanto182/go-next-saas/api/internal/controller/restapi/middleware"
 	"github.com/agusheryanto182/go-next-saas/api/internal/controller/restapi/problem"
 )
@@ -21,9 +24,7 @@ func (f fakeDB) Ping(context.Context) error { return f.err }
 func newRouter(t *testing.T, db fakeDB) http.Handler {
 	t.Helper()
 	h, err := NewRouter(Deps{Log: slog.New(slog.DiscardHandler), DB: db})
-	if err != nil {
-		t.Fatalf("NewRouter: %v", err)
-	}
+	require.NoError(t, err)
 	return h
 }
 
@@ -45,17 +46,14 @@ func decodeProblemKeepBody(t *testing.T, rec *httptest.ResponseRecorder) problem
 
 func decodeProblem(t *testing.T, rec *httptest.ResponseRecorder) problem.Problem {
 	t.Helper()
-	if ct := rec.Header().Get("Content-Type"); ct != "application/problem+json" {
-		t.Fatalf("Content-Type = %q, want application/problem+json", ct)
-	}
+	require.Equal(t, "application/problem+json", rec.Header().Get("Content-Type"))
 	var p problem.Problem
-	if err := json.NewDecoder(rec.Body).Decode(&p); err != nil {
-		t.Fatalf("decode problem: %v", err)
-	}
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&p), "decode problem")
 	return p
 }
 
 func TestHealthAndReadiness(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		db         fakeDB
@@ -68,49 +66,43 @@ func TestHealthAndReadiness(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			rec := serve(t, newRouter(t, tt.db), http.MethodGet, tt.path)
-			if rec.Code != tt.wantStatus {
-				t.Fatalf("status = %d, want %d", rec.Code, tt.wantStatus)
-			}
+			require.Equal(t, tt.wantStatus, rec.Code)
 			if tt.wantStatus == http.StatusServiceUnavailable {
-				if p := decodeProblem(t, rec); p.Status != tt.wantStatus || p.Title != "Service Unavailable" {
-					t.Errorf("problem = %+v", p)
-				}
+				p := decodeProblem(t, rec)
+				assert.Equal(t, tt.wantStatus, p.Status)
+				assert.Equal(t, "Service Unavailable", p.Title)
 			}
 		})
 	}
 }
 
 func TestUnknownRouteIsProblem(t *testing.T) {
+	t.Parallel()
 	rec := serve(t, newRouter(t, fakeDB{}), http.MethodGet, "/nope")
 
-	if p := decodeProblem(t, rec); rec.Code != http.StatusNotFound || p.Status != http.StatusNotFound {
-		t.Errorf("status = %d, problem = %+v", rec.Code, p)
-	}
+	assert.Equal(t, http.StatusNotFound, rec.Code)
+	assert.Equal(t, http.StatusNotFound, decodeProblem(t, rec).Status)
 }
 
 func TestWrongMethodIsRejected(t *testing.T) {
+	t.Parallel()
 	rec := serve(t, newRouter(t, fakeDB{}), http.MethodPost, "/healthz")
 
-	if p := decodeProblem(t, rec); rec.Code != http.StatusMethodNotAllowed || p.Status != http.StatusMethodNotAllowed {
-		t.Errorf("status = %d, problem = %+v", rec.Code, p)
-	}
-	if allow := rec.Header().Get("Allow"); allow == "" {
-		t.Error("Allow header missing")
-	}
+	assert.Equal(t, http.StatusMethodNotAllowed, rec.Code)
+	assert.Equal(t, http.StatusMethodNotAllowed, decodeProblem(t, rec).Status)
+	assert.NotEmpty(t, rec.Header().Get("Allow"), "Allow header missing")
 }
 
 func TestRecoverTurnsPanicIntoProblem(t *testing.T) {
+	t.Parallel()
 	var logs bytes.Buffer
 	log := slog.New(slog.NewJSONHandler(&logs, nil))
 	h := middleware.Recover(log)(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { panic("boom") }))
 
 	rec := serve(t, h, http.MethodGet, "/")
 
-	if p := decodeProblem(t, rec); p.Status != http.StatusInternalServerError {
-		t.Errorf("problem = %+v", p)
-	}
-	if !bytes.Contains(logs.Bytes(), []byte("boom")) {
-		t.Errorf("panic not logged: %s", logs.String())
-	}
+	assert.Equal(t, http.StatusInternalServerError, decodeProblem(t, rec).Status)
+	assert.Contains(t, logs.String(), "boom", "panic not logged")
 }

@@ -27,6 +27,9 @@ type Config struct {
 	OTLPEndpoint string `env:"OTEL_EXPORTER_OTLP_ENDPOINT"`
 }
 
+// ErrInvalid is wrapped by every validation failure.
+var ErrInvalid = errors.New("invalid value")
+
 // New reads the environment and validates the result.
 func New() (Config, error) {
 	cfg, err := env.ParseAs[Config]()
@@ -50,7 +53,7 @@ func (c Config) validate() error {
 	var errs []error
 	var level slog.Level
 	if err := level.UnmarshalText([]byte(c.LogLevel)); err != nil {
-		errs = append(errs, fmt.Errorf("LOG_LEVEL %q: use debug, info, warn or error", c.LogLevel))
+		errs = append(errs, fmt.Errorf("LOG_LEVEL %q: %w: use debug, info, warn or error", c.LogLevel, ErrInvalid))
 	}
 	if err := validateHTTPURL(c.AppBaseURL); err != nil {
 		errs = append(errs, fmt.Errorf("APP_BASE_URL: %w", err))
@@ -61,7 +64,7 @@ func (c Config) validate() error {
 		}
 	}
 	if c.ShutdownTimeout <= 0 {
-		errs = append(errs, errors.New("SHUTDOWN_TIMEOUT must be positive"))
+		errs = append(errs, fmt.Errorf("SHUTDOWN_TIMEOUT: %w: must be positive", ErrInvalid))
 	}
 	return errors.Join(errs...)
 }
@@ -72,7 +75,7 @@ func validateHTTPURL(raw string) error {
 		return err
 	}
 	if (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
-		return fmt.Errorf("%q must be an absolute http(s) URL", raw)
+		return fmt.Errorf("%q: %w: must be an absolute http(s) URL", raw, ErrInvalid)
 	}
 	return nil
 }

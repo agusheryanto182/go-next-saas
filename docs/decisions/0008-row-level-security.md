@@ -15,9 +15,15 @@ Each request that touches organization data runs in a transaction that starts wi
 
 Integration tests prove that a query without the setting returns nothing and that one organization cannot read or write another's rows.
 
+### Which tables (2026-11-25)
+- **Row-level security:** organization data, i.e. `organizations`, `memberships`, `invitations` (M2) and every later business table.
+- **No row-level security:** global identity tables, i.e. `users`, `sessions`, `account_tokens`, `login_history`, `outbox_emails`. They belong to no organization and are read before any scope exists (a user by email at sign-in, a session by token hash). Access is guarded by the application and by storing only token hashes. An organization admin's view of login history joins `memberships`, so its policy still limits the rows.
+- Every query, on either kind of table, still runs inside the unit of work (`repo.Transactor.InScope`, ADR 0003): repositories refuse to run without one, with an empty scope where none applies.
+- Invitations are looked up by token before sign-in (M2). That will add a token-hash setting to the scope and a policy clause on it, so holding the token is what grants the read; no `SECURITY DEFINER` function is needed (and with `FORCE`, one owned by the owner role would be filtered too).
+
 ### Spike result (2026-11-24, issue #6)
 Proven against PostgreSQL 18.6 with the same role script as development (`dev/postgres-init/01-roles.sh`):
-- The unit of work (`persistent.Store.InScope`) starts each transaction with `set_config('app.user_id', …, true)` and `set_config('app.org_id', …, true)` — `SET LOCAL` with bind parameters. Policies read them through `app_user_id()` / `app_org_id()`, which turn an unset value into `NULL`.
+- The unit of work (`persistent.Store.InScope` at the time, now `repo.Transactor`, see ADR 0003) starts each transaction with `set_config('app.user_id', …, true)` and `set_config('app.org_id', …, true)` — `SET LOCAL` with bind parameters. Policies read them through `app_user_id()` / `app_org_id()`, which turn an unset value into `NULL`.
 - Without a scope, the app role sees **0** organizations and memberships.
 - Scoped to one organization, even an explicit query for another organization returns nothing; inserting a row for another organization fails with `42501`.
 - A user scope lists only that user's own memberships across organizations ("my organizations").

@@ -7,10 +7,13 @@ import (
 	"log/slog"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/trace"
 )
 
 func TestLoggerAddsTraceIDs(t *testing.T) {
+	t.Parallel()
 	var buf bytes.Buffer
 	log := New(&buf, slog.LevelInfo).With("component", "test")
 
@@ -22,28 +25,24 @@ func TestLoggerAddsTraceIDs(t *testing.T) {
 	log.InfoContext(trace.ContextWithSpanContext(context.Background(), sc), "hello")
 
 	var got map[string]any
-	if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
-		t.Fatalf("log line is not JSON: %v: %s", err, buf.String())
-	}
-	if got["trace_id"] != sc.TraceID().String() || got["span_id"] != sc.SpanID().String() || got["component"] != "test" {
-		t.Errorf("missing fields in %v", got)
-	}
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &got), "log line is not JSON: %s", buf.String())
+	assert.Equal(t, sc.TraceID().String(), got["trace_id"])
+	assert.Equal(t, sc.SpanID().String(), got["span_id"])
+	assert.Equal(t, "test", got["component"])
 }
 
 func TestLoggerWithoutSpan(t *testing.T) {
+	t.Parallel()
 	var buf bytes.Buffer
 	New(&buf, slog.LevelInfo).InfoContext(context.Background(), "hello")
 
-	if bytes.Contains(buf.Bytes(), []byte("trace_id")) {
-		t.Errorf("unexpected trace_id without a span: %s", buf.String())
-	}
+	assert.NotContains(t, buf.String(), "trace_id")
 }
 
 func TestLoggerRespectsLevel(t *testing.T) {
+	t.Parallel()
 	var buf bytes.Buffer
 	New(&buf, slog.LevelWarn).Info("hidden")
 
-	if buf.Len() != 0 {
-		t.Errorf("info logged at warn level: %s", buf.String())
-	}
+	assert.Zero(t, buf.Len(), "info logged at warn level: %s", buf.String())
 }
