@@ -11,7 +11,7 @@ A multi-tenant SaaS foundation: Go API (`api/`), Next.js web app (`web/`), OpenA
 - `make check-fast` — format, lint and unit tests for changed areas
 - `make check` — everything CI runs except end-to-end tests
 - `make test-integration` — API tests against a real PostgreSQL
-- `make e2e` — full stack + Playwright
+- `make e2e` — full stack + Playwright, in its own Compose project with random ports (never the `make dev` stack); runs wait for each other
 
 Run `make check` before saying work is done. If a command is missing, say so instead of working around it.
 

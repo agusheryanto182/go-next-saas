@@ -95,10 +95,8 @@ vuln: ## Known vulnerabilities in the API code and its dependencies
 test-integration: ## API tests against a real PostgreSQL (Docker; testcontainers)
 	cd api && go test -tags integration -race ./...
 
-e2e: ## Build and start the full stack, then run Playwright (once: cd e2e && npm ci)
-	docker compose --profile app up -d --build --wait
-	web=$$(docker compose port web 3000); api=$$(docker compose port api 8080); \
-	  cd e2e && E2E_BASE_URL=http://$$web E2E_API_URL=http://$$api npx --no-install playwright test
+e2e: ## Full stack in its own Compose project (random ports, one run at a time), then Playwright (once: cd e2e && npm ci); E2E_KEEP=1 keeps the stack
+	dev/e2e.sh
 
 seed: ## Development organizations and accounts, idempotent (needs DATABASE_URL to a local database, e.g. from .env)
 	cd api && go run ./cmd/app seed
