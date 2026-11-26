@@ -20,6 +20,7 @@ go-next-saas/
 ├─ CLAUDE.md             Claude Code entry point; imports AGENTS.md
 ├─ Makefile              one entry point for people, agents and CI
 ├─ compose.yml           local stack: PostgreSQL, Mailpit; profile `app` adds migrate (one-shot), the API and web app
+├─ compose.e2e.yml       `make e2e` overrides: random host ports for its own Compose project
 ├─ .env.example          every environment variable, with local defaults; copy to `.env`
 ├─ .worktreeinclude      gitignored files copied into agent worktrees (`.env`)
 ├─ .editorconfig         indentation and line endings for all editors
@@ -143,6 +144,7 @@ Tests sit next to the code as `*.test.ts(x)`.
 | Path | Contents |
 |---|---|
 | `postgres-init/01-roles.sh` | runs once when the local database volume is created: the `saas_owner` role (owns the schema, runs migrations) and the `saas_app` role (runtime, subject to row-level security). `make reset-db` runs it again. |
+| `e2e.sh` | `make e2e`: the full stack in its own Compose project with random host ports (`compose.e2e.yml`), one run at a time per machine, removed afterwards (`E2E_KEEP=1` keeps it). It never touches the `make dev` stack, so agents in parallel worktrees can run it. |
 
 ## `.claude/`
 
