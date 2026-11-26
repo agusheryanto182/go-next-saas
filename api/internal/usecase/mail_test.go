@@ -1,7 +1,9 @@
 package usecase_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"strings"
@@ -28,16 +30,20 @@ type mailDeps struct {
 	tx     *MockTransactor
 	outbox *MockOutboxRepo
 	mailer *MockMailer
+	log    *bytes.Buffer // JSON lines
 }
 
 func newMail(t *testing.T) (usecase.Mail, mailDeps) {
 	t.Helper()
 	ctrl := gomock.NewController(t)
-	d := mailDeps{tx: NewMockTransactor(ctrl), outbox: NewMockOutboxRepo(ctrl), mailer: NewMockMailer(ctrl)}
+	d := mailDeps{
+		tx: NewMockTransactor(ctrl), outbox: NewMockOutboxRepo(ctrl), mailer: NewMockMailer(ctrl),
+		log: &bytes.Buffer{},
+	}
 	// Every unit of work in the mail use case has an empty scope: the outbox is global.
 	d.tx.EXPECT().InScope(gomock.Any(), repo.Scope{}, gomock.Any()).AnyTimes().
 		DoAndReturn(func(ctx context.Context, _ repo.Scope, fn func(context.Context) error) error { return fn(ctx) })
-	return mail.New(d.tx, d.outbox, d.mailer, slog.New(slog.DiscardHandler)), d
+	return mail.New(d.tx, d.outbox, d.mailer, slog.New(slog.NewJSONHandler(d.log, nil))), d
 }
 
 func resetEmail(id string) entity.Email {
@@ -191,14 +197,29 @@ func TestMailMaintain(t *testing.T) {
 		return gomock.Cond(func(got time.Time) bool { return got.Sub(want).Abs() < time.Minute })
 	}
 
-	t.Run("clears failed payloads after 1 hour and purges sent emails after 30 days", func(t *testing.T) {
+	t.Run("clears failed payloads after 1 hour and purges sent and failed emails after 30 days", func(t *testing.T) {
 		t.Parallel()
 		uc, d := newMail(t)
 		now := time.Now()
-		d.outbox.EXPECT().ClearFailedPayloads(gomock.Any(), near(now.Add(-time.Hour))).Return(int64(2), nil)
-		d.outbox.EXPECT().PurgeSent(gomock.Any(), near(now.Add(-30*24*time.Hour))).Return(int64(5), nil)
+		gomock.InOrder(
+			d.outbox.EXPECT().ClearFailedPayloads(gomock.Any(), near(now.Add(-time.Hour))).Return(int64(2), nil),
+			d.outbox.EXPECT().PurgeSent(gomock.Any(), near(now.Add(-30*24*time.Hour))).Return(int64(5), nil),
+			d.outbox.EXPECT().PurgeFailed(gomock.Any(), near(now.Add(-30*24*time.Hour))).Return(int64(3), nil),
+		)
 
 		require.NoError(t, uc.Maintain(t.Context()))
+
+		var entry struct {
+			Msg          string `json:"msg"`
+			Cleared      int64  `json:"failed_payloads_cleared"`
+			SentPurged   int64  `json:"sent_purged"`
+			FailedPurged int64  `json:"failed_purged"`
+		}
+		require.NoError(t, json.NewDecoder(d.log).Decode(&entry)) // the first log line
+		assert.Equal(t, "email outbox maintained", entry.Msg)
+		assert.Equal(t, int64(2), entry.Cleared)
+		assert.Equal(t, int64(5), entry.SentPurged)
+		assert.Equal(t, int64(3), entry.FailedPurged)
 	})
 
 	t.Run("failure", func(t *testing.T) {
@@ -207,5 +228,16 @@ func TestMailMaintain(t *testing.T) {
 		d.outbox.EXPECT().ClearFailedPayloads(gomock.Any(), gomock.Any()).Return(int64(0), errDB)
 
 		require.ErrorIs(t, uc.Maintain(t.Context()), errDB)
+	})
+
+	t.Run("purging failed emails fails", func(t *testing.T) {
+		t.Parallel()
+		uc, d := newMail(t)
+		d.outbox.EXPECT().ClearFailedPayloads(gomock.Any(), gomock.Any()).Return(int64(0), nil)
+		d.outbox.EXPECT().PurgeSent(gomock.Any(), gomock.Any()).Return(int64(0), nil)
+		d.outbox.EXPECT().PurgeFailed(gomock.Any(), gomock.Any()).Return(int64(0), errDB)
+
+		require.ErrorIs(t, uc.Maintain(t.Context()), errDB)
+		assert.Empty(t, d.log.String(), "nothing is reported when the unit of work fails")
 	})
 }

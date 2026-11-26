@@ -60,3 +60,8 @@ WHERE status = 'failed' AND payload IS NOT NULL AND created_at < @created_before
 -- name: PurgeSentEmails :execrows
 DELETE FROM outbox_emails
 WHERE status = 'sent' AND sent_at < @sent_before::timestamptz;
+
+-- name: PurgeFailedEmails :execrows
+-- Failed rows keep the recipient (personal data), so they follow the same retention as sent ones.
+DELETE FROM outbox_emails
+WHERE status = 'failed' AND created_at < @created_before::timestamptz;

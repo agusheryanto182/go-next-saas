@@ -20,7 +20,7 @@ Invitations and password resets depend on email. employee-portal sent emails asy
 - **"Right away" means waking the worker** through a channel after commit, so there is one sending path; without a signal it polls every 10 seconds. `Message-ID` is the outbox ID. On shutdown the worker finishes the email in flight and stops.
 - **Layers:** use cases enqueue with `repo.OutboxRepo` inside their unit of work; `repo.Mailer` (`repo/webapi/mail`, go-mail) renders embedded `html/template` and text templates and sends; the loop lives in `internal/app` and calls a `mail` use case.
 - **SMTP:** `SMTP_TLS` is a mode, `none | starttls | tls` (production providers use STARTTLS on 587), with explicit connect and send timeouts. `SMTP_SEND_TIMEOUT` is at most 20 seconds, so a batch of 10 sent one by one stays within its 5-minute lease and a slow server cannot cause duplicates.
-- **Daily maintenance** runs in the same loop: sessions 90 days after they ended (ADR 0006), `login_history` after 365 days (ADR 0013), sent outbox rows after 30 days.
+- **Daily maintenance** runs in the same loop: sessions 90 days after they ended (ADR 0006), `login_history` after 365 days (ADR 0013), sent outbox rows 30 days after sending and failed ones 30 days after they were created. Both keep the recipient (personal data), so neither stays forever; 30 days leaves time to look into a failure.
 
 ## Alternatives considered
 - **Send inside the request:** a slow or failing SMTP server fails the request, or the email is sent for a change that later rolls back.

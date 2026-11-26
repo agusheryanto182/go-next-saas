@@ -16,8 +16,8 @@ import (
 const (
 	// _failedPayloadTTL is how long a failed email keeps its payload: a reset token expires after 1 hour.
 	_failedPayloadTTL = time.Hour
-	// _sentRetention is how long a sent email stays for audit.
-	_sentRetention = 30 * 24 * time.Hour
+	// _retention is how long a sent or failed email stays for audit: both keep the recipient.
+	_retention = 30 * 24 * time.Hour
 	// _maxErrorRunes bounds last_error (the column allows 1000 characters).
 	_maxErrorRunes = 500
 	_redacted      = "[redacted]"
@@ -109,19 +109,23 @@ func (uc *UseCase) send(ctx context.Context, e entity.Email) error {
 // Maintain -.
 func (uc *UseCase) Maintain(ctx context.Context) error {
 	now := time.Now()
-	var cleared, purged int64
+	var cleared, sentPurged, failedPurged int64
 	if err := uc.tx.InScope(ctx, repo.Scope{}, func(ctx context.Context) error {
 		var err error
 		if cleared, err = uc.outbox.ClearFailedPayloads(ctx, now.Add(-_failedPayloadTTL)); err != nil {
 			return err
 		}
-		purged, err = uc.outbox.PurgeSent(ctx, now.Add(-_sentRetention))
+		if sentPurged, err = uc.outbox.PurgeSent(ctx, now.Add(-_retention)); err != nil {
+			return err
+		}
+		failedPurged, err = uc.outbox.PurgeFailed(ctx, now.Add(-_retention))
 		return err
 	}); err != nil {
 		return fmt.Errorf("MailUseCase - Maintain: %w", err)
 	}
 	uc.log.InfoContext(ctx, "email outbox maintained",
-		slog.Int64("failed_payloads_cleared", cleared), slog.Int64("sent_purged", purged))
+		slog.Int64("failed_payloads_cleared", cleared), slog.Int64("sent_purged", sentPurged),
+		slog.Int64("failed_purged", failedPurged))
 	return nil
 }
 
