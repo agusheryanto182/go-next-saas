@@ -5,6 +5,7 @@
 package gen
 
 import (
+	"net/netip"
 	"time"
 
 	"github.com/google/uuid"
@@ -38,6 +39,20 @@ type OutboxEmail struct {
 	SentAt        *time.Time
 	LastError     *string
 	CreatedAt     time.Time
+}
+
+type Session struct {
+	ID                uuid.UUID
+	UserID            uuid.UUID
+	TokenHash         []byte
+	CreatedAt         time.Time
+	LastSeenAt        time.Time
+	IdleExpiresAt     time.Time
+	AbsoluteExpiresAt time.Time
+	RevokedAt         *time.Time
+	RevokedReason     *string
+	Ip                *netip.Addr
+	UserAgent         *string
 }
 
 type User struct {

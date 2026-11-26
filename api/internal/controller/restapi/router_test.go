@@ -15,17 +15,53 @@ import (
 
 	"github.com/agusheryanto182/go-next-saas/api/internal/controller/restapi/middleware"
 	"github.com/agusheryanto182/go-next-saas/api/internal/controller/restapi/problem"
+	"github.com/agusheryanto182/go-next-saas/api/internal/entity"
+	"github.com/agusheryanto182/go-next-saas/api/internal/usecase"
 )
 
 type fakeDB struct{ err error }
 
 func (f fakeDB) Ping(context.Context) error { return f.err }
 
+// validToken is the one token fakeSessions accepts.
+const validToken = "valid-token-0123456789-abcdefghijklmnopqrst"
+
+// fakeSessions authenticates validToken as Alice, or fails every lookup with err.
+type fakeSessions struct {
+	usecase.Session // only Authenticate is called by the router
+	err             error
+}
+
+func (f fakeSessions) Authenticate(_ context.Context, token string) (entity.Session, entity.User, error) {
+	switch {
+	case f.err != nil:
+		return entity.Session{}, entity.User{}, f.err
+	case token == validToken:
+		return entity.Session{ID: "0193b5a4-6c2e-7d4a-9f1e-2b3c4d5e6f71", UserID: "0193b5a4-6c2e-7d4a-9f1e-2b3c4d5e6f70"},
+			entity.User{ID: "0193b5a4-6c2e-7d4a-9f1e-2b3c4d5e6f70", Email: "alice@acme.test", FullName: "Alice"}, nil
+	default:
+		return entity.Session{}, entity.User{}, entity.ErrSessionNotFound
+	}
+}
+
 func newRouter(t *testing.T, db fakeDB) http.Handler {
 	t.Helper()
-	h, err := NewRouter(Deps{Log: slog.New(slog.DiscardHandler), DB: db})
+	return newRouterWith(t, Deps{DB: db, Sessions: fakeSessions{}})
+}
+
+func newRouterWith(t *testing.T, d Deps) http.Handler {
+	t.Helper()
+	if d.Log == nil {
+		d.Log = slog.New(slog.DiscardHandler)
+	}
+	h, err := NewRouter(d)
 	require.NoError(t, err)
 	return h
+}
+
+func signedIn(req *http.Request) *http.Request {
+	req.AddCookie(&http.Cookie{Name: middleware.SessionCookieName, Value: validToken})
+	return req
 }
 
 func serve(t *testing.T, h http.Handler, method, path string) *httptest.ResponseRecorder {

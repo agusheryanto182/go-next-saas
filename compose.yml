@@ -63,6 +63,11 @@ services:
       DATABASE_URL: postgres://saas_app:${POSTGRES_APP_PASSWORD:-saas_app}@postgres:5432/${POSTGRES_DB:-saas}?sslmode=disable
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      # The web container forwards the client IP during server rendering; Docker gives compose
+      # networks addresses from these private ranges. Local development only: this also trusts the
+      # bridge gateway, so a process on this machine can set X-Forwarded-For through the published
+      # port. Production lists only the reverse proxy and the Next.js server.
+      TRUSTED_PROXIES: 172.16.0.0/12,192.168.0.0/16
       # Mailpit inside the compose network: no TLS, no authentication.
       SMTP_HOST: mailpit
       SMTP_PORT: 1025

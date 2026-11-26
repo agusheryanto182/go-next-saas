@@ -52,8 +52,8 @@ api/
 ├─ internal/
 │  ├─ app/app.go                         wiring (manual dependency injection), start-up and graceful shutdown
 │  ├─ controller/restapi/                HTTP layer
-│  │  ├─ router.go                       routes, /healthz and /readyz, 404/405 as problem details
-│  │  ├─ middleware/                     shared middleware (panic recovery; sessions and CSRF later)
+│  │  ├─ router.go                       routes, /healthz and /readyz, cross-origin protection, 404/405 as problem details
+│  │  ├─ middleware/                     shared middleware: panic recovery, client IP, session cookie
 │  │  ├─ problem/                        RFC 9457 error responses
 │  │  ├─ contract_test.go                responses checked against openapi.yaml
 │  │  └─ v1/                             /api/v1 endpoints
@@ -69,7 +69,7 @@ api/
 │     └─ persistent/                     PostgreSQL
 │        ├─ transactor.go                unit of work: transaction + transaction-local scope for row-level security
 │        ├─ convert.go                   ID parsing, NULL mapping, unique-violation check shared by repositories
-│        ├─ <domain>/                    one repository per domain (user, organization, membership): <domain>.go + tracing.go
+│        ├─ <domain>/                    one repository per domain (user, organization, membership, outbox, session): <domain>.go + tracing.go
 │        ├─ migrate.go                   applies the embedded migrations with goose
 │        ├─ pgtest/                      PostgreSQL container with production roles, for integration tests
 │        ├─ *_integration_test.go        migrations round trip; unit of work and tenant isolation through the repositories

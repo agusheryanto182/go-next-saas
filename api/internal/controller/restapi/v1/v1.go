@@ -12,29 +12,42 @@ import (
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/getkin/kin-openapi/openapi3filter"
-	middleware "github.com/oapi-codegen/nethttp-middleware"
+	validator "github.com/oapi-codegen/nethttp-middleware"
 
+	"github.com/agusheryanto182/go-next-saas/api/internal/controller/restapi/middleware"
 	"github.com/agusheryanto182/go-next-saas/api/internal/controller/restapi/problem"
 	"github.com/agusheryanto182/go-next-saas/api/internal/controller/restapi/v1/gen"
+	"github.com/agusheryanto182/go-next-saas/api/internal/usecase"
 )
 
 // BaseURL is where the contract's paths are served (the spec's `servers` entry).
 const BaseURL = "/api"
 
-const _uuidPattern = `^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`
+const (
+	_uuidPattern = `^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`
+	// _sessionScheme is the contract's security scheme for the session cookie.
+	_sessionScheme = "session"
+)
 
-// Mount registers every contract route on mux. Requests are validated against the spec first,
-// so handlers only see well-formed input; failures become 400 problems naming the field.
-func Mount(mux *http.ServeMux, log *slog.Logger) error {
+var (
+	errNoSession     = errors.New("no valid session")
+	errUnknownScheme = errors.New("unknown security scheme")
+)
+
+// Mount registers every contract route on mux. The session cookie is resolved first, then requests
+// are validated against the spec, so handlers only see well-formed input from a caller the contract
+// allows: an operation with `security: session` and no session gets a 401 problem, other failures a
+// 400 problem naming the field.
+func Mount(mux *http.ServeMux, log *slog.Logger, sessions usecase.Session) error {
 	spec, err := gen.GetSpec()
 	if err != nil {
 		return fmt.Errorf("load embedded OpenAPI spec: %w", err)
 	}
 
-	validate := middleware.OapiRequestValidatorWithOptions(spec, &middleware.Options{
+	validate := validator.OapiRequestValidatorWithOptions(spec, &validator.Options{
 		Options: openapi3filter.Options{
-			// Sessions are checked by our own middleware, not by the validator.
-			AuthenticationFunc: openapi3filter.NoopAuthenticationFunc,
+			// The contract decides which operations need a session; there is no list in Go (ADR 0006).
+			AuthenticationFunc: authenticate,
 			// Formats are checked here too, so a malformed email is reported like any other field.
 			SchemaValidationOptions: []openapi3.SchemaValidationOption{
 				openapi3.EnableFormatValidation(),
@@ -44,7 +57,7 @@ func Mount(mux *http.ServeMux, log *slog.Logger) error {
 		},
 		DoNotValidateServers: true,
 		Prefix:               BaseURL,
-		ErrorHandlerWithOpts: func(_ context.Context, err error, w http.ResponseWriter, _ *http.Request, opts middleware.ErrorHandlerOpts) {
+		ErrorHandlerWithOpts: func(_ context.Context, err error, w http.ResponseWriter, _ *http.Request, opts validator.ErrorHandlerOpts) {
 			problem.Write(w, validationProblem(err, opts.StatusCode))
 		},
 	})
@@ -60,9 +73,10 @@ func Mount(mux *http.ServeMux, log *slog.Logger) error {
 	})
 
 	gen.HandlerWithOptions(strict, gen.StdHTTPServerOptions{
-		BaseURL:     BaseURL,
-		BaseRouter:  mux,
-		Middlewares: []gen.MiddlewareFunc{validate},
+		BaseURL:    BaseURL,
+		BaseRouter: mux,
+		// The last middleware runs first: the session is in the context before validation.
+		Middlewares: []gen.MiddlewareFunc{validate, middleware.Session(sessions, log)},
 		ErrorHandlerFunc: func(w http.ResponseWriter, _ *http.Request, err error) {
 			problem.Write(w, problem.New(http.StatusBadRequest, err.Error()))
 		},
@@ -70,8 +84,23 @@ func Mount(mux *http.ServeMux, log *slog.Logger) error {
 	return nil
 }
 
+// authenticate is the validator's check of an operation's security requirement: the session
+// middleware must have found a valid session. ctx is the request's context.
+func authenticate(ctx context.Context, in *openapi3filter.AuthenticationInput) error {
+	if in.SecuritySchemeName != _sessionScheme {
+		return fmt.Errorf("%w %q", errUnknownScheme, in.SecuritySchemeName)
+	}
+	if _, _, ok := middleware.SessionFrom(ctx); !ok {
+		return errNoSession
+	}
+	return nil
+}
+
 // validationProblem turns a spec validation failure into a problem with the offending field named.
 func validationProblem(err error, suggested int) problem.Problem {
+	if _, ok := errors.AsType[*openapi3filter.SecurityRequirementsError](err); ok {
+		return problem.New(http.StatusUnauthorized, "Sign in to continue.")
+	}
 	status := suggested
 	if status == 0 {
 		status = http.StatusBadRequest
