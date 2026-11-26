@@ -215,7 +215,7 @@ func TestMailMaintain(t *testing.T) {
 			SentPurged   int64  `json:"sent_purged"`
 			FailedPurged int64  `json:"failed_purged"`
 		}
-		require.NoError(t, json.Unmarshal(d.log.Bytes(), &entry))
+		require.NoError(t, json.NewDecoder(d.log).Decode(&entry)) // the first log line
 		assert.Equal(t, "email outbox maintained", entry.Msg)
 		assert.Equal(t, int64(2), entry.Cleared)
 		assert.Equal(t, int64(5), entry.SentPurged)
