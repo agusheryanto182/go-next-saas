@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/mail"
+	"net/netip"
 	"net/url"
 	"time"
 
@@ -23,6 +24,11 @@ type Config struct {
 	DatabaseURL string `env:"DATABASE_URL,required,notEmpty"`
 	// AppBaseURL is the public URL of the web app, used in invitation and reset links.
 	AppBaseURL string `env:"APP_BASE_URL,required,notEmpty"`
+
+	// TrustedProxies are the CIDRs whose X-Forwarded-For is believed when finding the client IP
+	// (ADR 0006): the reverse proxy, and Next.js during server rendering. Comma-separated; empty
+	// trusts nobody. Read them with TrustedProxyPrefixes.
+	TrustedProxies []string `env:"TRUSTED_PROXIES"`
 
 	// OTLPEndpoint enables trace export when set, e.g. http://localhost:4318.
 	OTLPEndpoint string `env:"OTEL_EXPORTER_OTLP_ENDPOINT"`
@@ -68,6 +74,17 @@ func (c Config) SlogLevel() slog.Level {
 	return level
 }
 
+// TrustedProxyPrefixes returns the parsed TRUSTED_PROXIES. validate guarantees they parse.
+func (c Config) TrustedProxyPrefixes() []netip.Prefix {
+	prefixes := make([]netip.Prefix, 0, len(c.TrustedProxies))
+	for _, raw := range c.TrustedProxies {
+		if p, err := netip.ParsePrefix(raw); err == nil {
+			prefixes = append(prefixes, p)
+		}
+	}
+	return prefixes
+}
+
 func (c Config) validate() error {
 	var errs []error
 	var level slog.Level
@@ -84,6 +101,11 @@ func (c Config) validate() error {
 	}
 	if c.ShutdownTimeout <= 0 {
 		errs = append(errs, fmt.Errorf("SHUTDOWN_TIMEOUT: %w: must be positive", ErrInvalid))
+	}
+	for _, raw := range c.TrustedProxies {
+		if err := validateCIDR(raw); err != nil {
+			errs = append(errs, fmt.Errorf("TRUSTED_PROXIES: %w", err))
+		}
 	}
 	errs = append(errs, c.SMTP.validate())
 	if _, err := mail.ParseAddress(c.MailFrom); err != nil {
@@ -115,6 +137,18 @@ func (s SMTP) validate() error {
 			s.SendTimeout, ErrInvalid, _maxSendTimeout))
 	}
 	return errors.Join(errs...)
+}
+
+// validateCIDR accepts a network in CIDR notation without host bits, like 10.0.0.0/8 or ::1/128.
+func validateCIDR(raw string) error {
+	p, err := netip.ParsePrefix(raw)
+	if err != nil {
+		return fmt.Errorf("%q: %w: use CIDR notation, like 10.0.0.0/8 or ::1/128", raw, ErrInvalid)
+	}
+	if p != p.Masked() {
+		return fmt.Errorf("%q: %w: host bits are set, did you mean %s?", raw, ErrInvalid, p.Masked())
+	}
+	return nil
 }
 
 func validateHTTPURL(raw string) error {

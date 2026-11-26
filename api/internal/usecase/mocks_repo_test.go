@@ -355,6 +355,119 @@ func (mr *MockUserRepoMockRecorder) Store(ctx, u any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Store", reflect.TypeOf((*MockUserRepo)(nil).Store), ctx, u)
 }
 
+// MockSessionRepo is a mock of SessionRepo interface.
+type MockSessionRepo struct {
+	ctrl     *gomock.Controller
+	recorder *MockSessionRepoMockRecorder
+	isgomock struct{}
+}
+
+// MockSessionRepoMockRecorder is the mock recorder for MockSessionRepo.
+type MockSessionRepoMockRecorder struct {
+	mock *MockSessionRepo
+}
+
+// NewMockSessionRepo creates a new mock instance.
+func NewMockSessionRepo(ctrl *gomock.Controller) *MockSessionRepo {
+	mock := &MockSessionRepo{ctrl: ctrl}
+	mock.recorder = &MockSessionRepoMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockSessionRepo) EXPECT() *MockSessionRepoMockRecorder {
+	return m.recorder
+}
+
+// GetActiveByTokenHash mocks base method.
+func (m *MockSessionRepo) GetActiveByTokenHash(ctx context.Context, tokenHash []byte, now time.Time) (entity.Session, entity.User, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetActiveByTokenHash", ctx, tokenHash, now)
+	ret0, _ := ret[0].(entity.Session)
+	ret1, _ := ret[1].(entity.User)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// GetActiveByTokenHash indicates an expected call of GetActiveByTokenHash.
+func (mr *MockSessionRepoMockRecorder) GetActiveByTokenHash(ctx, tokenHash, now any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetActiveByTokenHash", reflect.TypeOf((*MockSessionRepo)(nil).GetActiveByTokenHash), ctx, tokenHash, now)
+}
+
+// PurgeEnded mocks base method.
+func (m *MockSessionRepo) PurgeEnded(ctx context.Context, endedBefore time.Time) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PurgeEnded", ctx, endedBefore)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// PurgeEnded indicates an expected call of PurgeEnded.
+func (mr *MockSessionRepoMockRecorder) PurgeEnded(ctx, endedBefore any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PurgeEnded", reflect.TypeOf((*MockSessionRepo)(nil).PurgeEnded), ctx, endedBefore)
+}
+
+// Revoke mocks base method.
+func (m *MockSessionRepo) Revoke(ctx context.Context, userID, id string, reason entity.RevokeReason, now time.Time) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Revoke", ctx, userID, id, reason, now)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Revoke indicates an expected call of Revoke.
+func (mr *MockSessionRepoMockRecorder) Revoke(ctx, userID, id, reason, now any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Revoke", reflect.TypeOf((*MockSessionRepo)(nil).Revoke), ctx, userID, id, reason, now)
+}
+
+// RevokeOthers mocks base method.
+func (m *MockSessionRepo) RevokeOthers(ctx context.Context, userID, exceptID string, reason entity.RevokeReason, now time.Time) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RevokeOthers", ctx, userID, exceptID, reason, now)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RevokeOthers indicates an expected call of RevokeOthers.
+func (mr *MockSessionRepoMockRecorder) RevokeOthers(ctx, userID, exceptID, reason, now any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RevokeOthers", reflect.TypeOf((*MockSessionRepo)(nil).RevokeOthers), ctx, userID, exceptID, reason, now)
+}
+
+// Store mocks base method.
+func (m *MockSessionRepo) Store(ctx context.Context, s entity.Session, tokenHash []byte) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Store", ctx, s, tokenHash)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Store indicates an expected call of Store.
+func (mr *MockSessionRepoMockRecorder) Store(ctx, s, tokenHash any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Store", reflect.TypeOf((*MockSessionRepo)(nil).Store), ctx, s, tokenHash)
+}
+
+// Touch mocks base method.
+func (m *MockSessionRepo) Touch(ctx context.Context, id string, now time.Time) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Touch", ctx, id, now)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Touch indicates an expected call of Touch.
+func (mr *MockSessionRepoMockRecorder) Touch(ctx, id, now any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Touch", reflect.TypeOf((*MockSessionRepo)(nil).Touch), ctx, id, now)
+}
+
 // MockOrganizationRepo is a mock of OrganizationRepo interface.
 type MockOrganizationRepo struct {
 	ctrl     *gomock.Controller

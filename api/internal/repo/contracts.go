@@ -85,6 +85,29 @@ type (
 		GetByEmail(ctx context.Context, email string) (entity.User, error)
 	}
 
+	// SessionRepo stores server-side sessions (ADR 0006). The table is global: use an empty scope.
+	// Times are the use case's clock, never the database's.
+	SessionRepo interface {
+		// Store inserts s with the SHA-256 of its token.
+		Store(ctx context.Context, s entity.Session, tokenHash []byte) error
+		// GetActiveByTokenHash returns the session with that token hash and its user if it is active
+		// at now (not revoked, neither expiry reached), else entity.ErrSessionNotFound. The user has
+		// no PasswordHash.
+		GetActiveByTokenHash(ctx context.Context, tokenHash []byte, now time.Time) (entity.Session, entity.User, error)
+		// Touch sets the last use to now and the idle expiry to now + entity.SessionIdleTimeout,
+		// capped at the absolute expiry, if the session is not revoked and was last seen more than
+		// entity.SessionRefreshInterval before now. It reports whether it wrote.
+		Touch(ctx context.Context, id string, now time.Time) (bool, error)
+		// Revoke ends the user's session id if it is active at now, else returns
+		// entity.ErrSessionNotFound.
+		Revoke(ctx context.Context, userID, id string, reason entity.RevokeReason, now time.Time) error
+		// RevokeOthers ends every session of the user that is active at now, except exceptID, and
+		// returns how many.
+		RevokeOthers(ctx context.Context, userID, exceptID string, reason entity.RevokeReason, now time.Time) (int64, error)
+		// PurgeEnded deletes sessions that were revoked or expired before endedBefore.
+		PurgeEnded(ctx context.Context, endedBefore time.Time) (int64, error)
+	}
+
 	// OrganizationRepo stores organizations. Visible rows depend on the scope.
 	OrganizationRepo interface {
 		// Store inserts o and sets its timestamps; the scope's OrgID must be o.ID.

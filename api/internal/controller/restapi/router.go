@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"net/netip"
 	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -14,6 +15,7 @@ import (
 	"github.com/agusheryanto182/go-next-saas/api/internal/controller/restapi/middleware"
 	"github.com/agusheryanto182/go-next-saas/api/internal/controller/restapi/problem"
 	v1 "github.com/agusheryanto182/go-next-saas/api/internal/controller/restapi/v1"
+	"github.com/agusheryanto182/go-next-saas/api/internal/usecase"
 )
 
 // Pinger reports whether a dependency (the database) is reachable.
@@ -23,14 +25,17 @@ type Pinger interface {
 
 // Deps are what the router needs from the rest of the application.
 type Deps struct {
-	Log *slog.Logger
-	DB  Pinger
+	Log      *slog.Logger
+	DB       Pinger
+	Sessions usecase.Session
+	// TrustedProxies may set X-Forwarded-For (config TRUSTED_PROXIES).
+	TrustedProxies []netip.Prefix
 }
 
 // NewRouter builds the complete HTTP handler: health probes plus every route in the OpenAPI contract.
 func NewRouter(d Deps) (http.Handler, error) {
 	mux := http.NewServeMux()
-	if err := v1.Mount(mux, d.Log); err != nil {
+	if err := v1.Mount(mux, d.Log, d.Sessions); err != nil {
 		return nil, err
 	}
 
@@ -50,10 +55,23 @@ func NewRouter(d Deps) (http.Handler, error) {
 	})
 
 	h := problemOnNoRoute(mux)
+	h = middleware.ClientIP(d.TrustedProxies)(h)
+	h = crossOriginProtection(h)
 	h = middleware.Recover(d.Log)(h)
 	h = otelhttp.NewHandler(h, "api",
 		otelhttp.WithFilter(func(r *http.Request) bool { return r.URL.Path != "/healthz" && r.URL.Path != "/readyz" }))
 	return h, nil
+}
+
+// crossOriginProtection rejects state-changing requests from other origins (ADR 0015), judged by
+// Sec-Fetch-Site and Origin. Safe methods and requests without these headers (server rendering,
+// non-browser clients) pass; SameSite=Lax keeps the cookie off cross-site writes in older browsers.
+func crossOriginProtection(next http.Handler) http.Handler {
+	cop := http.NewCrossOriginProtection()
+	cop.SetDenyHandler(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		problem.Write(w, problem.New(http.StatusForbidden, "Cross-origin requests are not allowed."))
+	}))
+	return cop.Handler(next)
 }
 
 // problemOnNoRoute keeps ServeMux's 404 and 405 decisions (including the Allow header)

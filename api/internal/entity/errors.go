@@ -19,4 +19,8 @@ var (
 	ErrMembershipExists = errors.New("user is already a member of the organization")
 	ErrInvalidRole      = errors.New("invalid role")
 	ErrInvalidStatus    = errors.New("invalid membership status")
+
+	// ErrSessionNotFound covers every token that does not authenticate: malformed, unknown, revoked
+	// or expired. Callers cannot tell these apart.
+	ErrSessionNotFound = errors.New("session not found")
 )

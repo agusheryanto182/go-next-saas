@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"sync/atomic"
 	"testing"
@@ -44,13 +45,14 @@ func (f *fakeMail) Maintain(context.Context) error {
 }
 
 // newTestWorker never polls on its own, so every SendDue after the first comes from a wake-up.
-func newTestWorker(mail *fakeMail) *mailWorker {
-	w := newMailWorker(mail, slog.New(slog.DiscardHandler))
+func newTestWorker(mail *fakeMail, daily ...maintenanceStep) *worker {
+	daily = append([]maintenanceStep{{name: "email outbox", run: mail.Maintain}}, daily...)
+	w := newWorker(mail, slog.New(slog.DiscardHandler), daily...)
 	w.poll, w.maintenance = time.Hour, time.Hour
 	return w
 }
 
-func run(ctx context.Context, w *mailWorker) <-chan struct{} {
+func run(ctx context.Context, w *worker) <-chan struct{} {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
@@ -144,4 +146,20 @@ func TestMailWorkerDrainsUntilNothingIsDue(t *testing.T) {
 	waitCall(t, mail) // 3 claimed
 	waitCall(t, mail) // none due
 	noCall(t, mail)
+}
+
+func TestWorkerRunsEveryMaintenanceStepEvenAfterAFailure(t *testing.T) {
+	t.Parallel()
+	mail := newFakeMail()
+	var purged atomic.Int32
+	failing := maintenanceStep{name: "failing", run: func(context.Context) error { return errors.New("database unavailable") }}
+	sessions := maintenanceStep{name: "sessions", run: func(context.Context) error { purged.Add(1); return nil }}
+	ctx, cancel := context.WithCancel(t.Context())
+	done := run(ctx, newTestWorker(mail, failing, sessions))
+	waitCall(t, mail) // maintenance ran before the first send
+
+	cancel()
+	<-done
+	assert.Equal(t, int32(1), mail.maintenance.Load())
+	assert.Equal(t, int32(1), purged.Load(), "a failing step does not skip the next")
 }

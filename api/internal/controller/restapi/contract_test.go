@@ -117,28 +117,32 @@ func TestContractRoutes(t *testing.T) {
 		body       string
 		wantStatus int
 		wantField  string // field named in the problem's errors map
+		signedIn   bool
 	}{
-		{"me is not implemented yet", http.MethodGet, "/api/v1/me", "", http.StatusNotImplemented, ""},
-		{"my organizations is not implemented yet", http.MethodGet, "/api/v1/me/organizations", "", http.StatusNotImplemented, ""},
-		{"members is not implemented yet", http.MethodGet, "/api/v1/orgs/acme-corp/members?role=admin&page=1&size=50", "", http.StatusNotImplemented, ""},
-		{"size above the maximum", http.MethodGet, "/api/v1/orgs/acme-corp/members?size=500", "", http.StatusBadRequest, "size"},
-		{"negative page", http.MethodGet, "/api/v1/orgs/acme-corp/members?page=-1", "", http.StatusBadRequest, "page"},
-		{"unknown role", http.MethodGet, "/api/v1/orgs/acme-corp/members?role=boss", "", http.StatusBadRequest, "role"},
-		{"slug breaks the pattern", http.MethodGet, "/api/v1/orgs/Acme_Corp/members", "", http.StatusBadRequest, "slug"},
+		{"me is not implemented yet", http.MethodGet, "/api/v1/me", "", http.StatusNotImplemented, "", true},
+		{"me needs a session", http.MethodGet, "/api/v1/me", "", http.StatusUnauthorized, "", false},
+		{"my organizations is not implemented yet", http.MethodGet, "/api/v1/me/organizations", "", http.StatusNotImplemented, "", true},
+		{"my organizations needs a session", http.MethodGet, "/api/v1/me/organizations", "", http.StatusUnauthorized, "", false},
+		{"members is not implemented yet", http.MethodGet, "/api/v1/orgs/acme-corp/members?role=admin&page=1&size=50", "", http.StatusNotImplemented, "", true},
+		{"members needs a session before anything else", http.MethodGet, "/api/v1/orgs/acme-corp/members?size=500", "", http.StatusUnauthorized, "", false},
+		{"size above the maximum", http.MethodGet, "/api/v1/orgs/acme-corp/members?size=500", "", http.StatusBadRequest, "size", true},
+		{"negative page", http.MethodGet, "/api/v1/orgs/acme-corp/members?page=-1", "", http.StatusBadRequest, "page", true},
+		{"unknown role", http.MethodGet, "/api/v1/orgs/acme-corp/members?role=boss", "", http.StatusBadRequest, "role", true},
+		{"slug breaks the pattern", http.MethodGet, "/api/v1/orgs/Acme_Corp/members", "", http.StatusBadRequest, "slug", true},
 
-		{"login is not implemented yet", http.MethodPost, "/api/v1/auth/login", `{"email":"a@example.com","password":"x"}`, http.StatusNotImplemented, ""},
-		{"login without password", http.MethodPost, "/api/v1/auth/login", `{"email":"a@example.com"}`, http.StatusBadRequest, "password"},
-		{"login with a password above 128", http.MethodPost, "/api/v1/auth/login", `{"email":"a@example.com","password":"` + long + `"}`, http.StatusBadRequest, "password"},
-		{"login with a malformed email", http.MethodPost, "/api/v1/auth/login", `{"email":"not-an-email","password":"x"}`, http.StatusBadRequest, "email"},
-		{"login with an unknown field", http.MethodPost, "/api/v1/auth/login", `{"email":"a@example.com","password":"x","admin":true}`, http.StatusBadRequest, "body"},
-		{"logout is not implemented yet", http.MethodPost, "/api/v1/auth/logout", "", http.StatusNotImplemented, ""},
-		{"forgot password is not implemented yet", http.MethodPost, "/api/v1/auth/forgot-password", `{"email":"a@example.com"}`, http.StatusNotImplemented, ""},
-		{"forgot password without email", http.MethodPost, "/api/v1/auth/forgot-password", `{}`, http.StatusBadRequest, "email"},
-		{"inspect is not implemented yet", http.MethodPost, "/api/v1/auth/tokens/inspect", `{"token":"` + token + `"}`, http.StatusNotImplemented, ""},
-		{"inspect with a malformed token", http.MethodPost, "/api/v1/auth/tokens/inspect", `{"token":"short"}`, http.StatusBadRequest, "token"},
-		{"reset is not implemented yet", http.MethodPost, "/api/v1/auth/reset-password", `{"token":"` + token + `","password":"long enough"}`, http.StatusNotImplemented, ""},
-		{"reset with a password of 7", http.MethodPost, "/api/v1/auth/reset-password", `{"token":"` + token + `","password":"1234567"}`, http.StatusBadRequest, "password"},
-		{"reset with a password above 128", http.MethodPost, "/api/v1/auth/reset-password", `{"token":"` + token + `","password":"` + long + `"}`, http.StatusBadRequest, "password"},
+		{"login is not implemented yet", http.MethodPost, "/api/v1/auth/login", `{"email":"a@example.com","password":"x"}`, http.StatusNotImplemented, "", false},
+		{"login without password", http.MethodPost, "/api/v1/auth/login", `{"email":"a@example.com"}`, http.StatusBadRequest, "password", false},
+		{"login with a password above 128", http.MethodPost, "/api/v1/auth/login", `{"email":"a@example.com","password":"` + long + `"}`, http.StatusBadRequest, "password", false},
+		{"login with a malformed email", http.MethodPost, "/api/v1/auth/login", `{"email":"not-an-email","password":"x"}`, http.StatusBadRequest, "email", false},
+		{"login with an unknown field", http.MethodPost, "/api/v1/auth/login", `{"email":"a@example.com","password":"x","admin":true}`, http.StatusBadRequest, "body", false},
+		{"logout is not implemented yet", http.MethodPost, "/api/v1/auth/logout", "", http.StatusNotImplemented, "", false},
+		{"forgot password is not implemented yet", http.MethodPost, "/api/v1/auth/forgot-password", `{"email":"a@example.com"}`, http.StatusNotImplemented, "", false},
+		{"forgot password without email", http.MethodPost, "/api/v1/auth/forgot-password", `{}`, http.StatusBadRequest, "email", false},
+		{"inspect is not implemented yet", http.MethodPost, "/api/v1/auth/tokens/inspect", `{"token":"` + token + `"}`, http.StatusNotImplemented, "", false},
+		{"inspect with a malformed token", http.MethodPost, "/api/v1/auth/tokens/inspect", `{"token":"short"}`, http.StatusBadRequest, "token", false},
+		{"reset is not implemented yet", http.MethodPost, "/api/v1/auth/reset-password", `{"token":"` + token + `","password":"long enough"}`, http.StatusNotImplemented, "", false},
+		{"reset with a password of 7", http.MethodPost, "/api/v1/auth/reset-password", `{"token":"` + token + `","password":"1234567"}`, http.StatusBadRequest, "password", false},
+		{"reset with a password above 128", http.MethodPost, "/api/v1/auth/reset-password", `{"token":"` + token + `","password":"` + long + `"}`, http.StatusBadRequest, "password", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -150,6 +154,9 @@ func TestContractRoutes(t *testing.T) {
 			req := httptest.NewRequestWithContext(t.Context(), tt.method, tt.path, body)
 			if tt.body != "" {
 				req.Header.Set("Content-Type", "application/json")
+			}
+			if tt.signedIn {
+				signedIn(req)
 			}
 			rec := httptest.NewRecorder()
 			h.ServeHTTP(rec, req)

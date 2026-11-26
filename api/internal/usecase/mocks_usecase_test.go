@@ -13,6 +13,7 @@ import (
 	context "context"
 	reflect "reflect"
 
+	entity "github.com/agusheryanto182/go-next-saas/api/internal/entity"
 	usecase "github.com/agusheryanto182/go-next-saas/api/internal/usecase"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -68,6 +69,104 @@ func (m *MockMail) SendDue(ctx context.Context) (int, error) {
 func (mr *MockMailMockRecorder) SendDue(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendDue", reflect.TypeOf((*MockMail)(nil).SendDue), ctx)
+}
+
+// MockSession is a mock of Session interface.
+type MockSession struct {
+	ctrl     *gomock.Controller
+	recorder *MockSessionMockRecorder
+	isgomock struct{}
+}
+
+// MockSessionMockRecorder is the mock recorder for MockSession.
+type MockSessionMockRecorder struct {
+	mock *MockSession
+}
+
+// NewMockSession creates a new mock instance.
+func NewMockSession(ctrl *gomock.Controller) *MockSession {
+	mock := &MockSession{ctrl: ctrl}
+	mock.recorder = &MockSessionMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockSession) EXPECT() *MockSessionMockRecorder {
+	return m.recorder
+}
+
+// Authenticate mocks base method.
+func (m *MockSession) Authenticate(ctx context.Context, token string) (entity.Session, entity.User, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Authenticate", ctx, token)
+	ret0, _ := ret[0].(entity.Session)
+	ret1, _ := ret[1].(entity.User)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// Authenticate indicates an expected call of Authenticate.
+func (mr *MockSessionMockRecorder) Authenticate(ctx, token any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Authenticate", reflect.TypeOf((*MockSession)(nil).Authenticate), ctx, token)
+}
+
+// Create mocks base method.
+func (m *MockSession) Create(ctx context.Context, userID, ip, userAgent string) (string, entity.Session, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Create", ctx, userID, ip, userAgent)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(entity.Session)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// Create indicates an expected call of Create.
+func (mr *MockSessionMockRecorder) Create(ctx, userID, ip, userAgent any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockSession)(nil).Create), ctx, userID, ip, userAgent)
+}
+
+// Purge mocks base method.
+func (m *MockSession) Purge(ctx context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Purge", ctx)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Purge indicates an expected call of Purge.
+func (mr *MockSessionMockRecorder) Purge(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Purge", reflect.TypeOf((*MockSession)(nil).Purge), ctx)
+}
+
+// Revoke mocks base method.
+func (m *MockSession) Revoke(ctx context.Context, userID, sessionID string, reason entity.RevokeReason) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Revoke", ctx, userID, sessionID, reason)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Revoke indicates an expected call of Revoke.
+func (mr *MockSessionMockRecorder) Revoke(ctx, userID, sessionID, reason any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Revoke", reflect.TypeOf((*MockSession)(nil).Revoke), ctx, userID, sessionID, reason)
+}
+
+// RevokeOthers mocks base method.
+func (m *MockSession) RevokeOthers(ctx context.Context, userID, exceptSessionID string, reason entity.RevokeReason) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RevokeOthers", ctx, userID, exceptSessionID, reason)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RevokeOthers indicates an expected call of RevokeOthers.
+func (mr *MockSessionMockRecorder) RevokeOthers(ctx, userID, exceptSessionID, reason any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RevokeOthers", reflect.TypeOf((*MockSession)(nil).RevokeOthers), ctx, userID, exceptSessionID, reason)
 }
 
 // MockOrganization is a mock of Organization interface.

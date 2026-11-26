@@ -2,6 +2,7 @@ package config
 
 import (
 	"log/slog"
+	"net/netip"
 	"testing"
 	"time"
 
@@ -30,6 +31,18 @@ func TestNewDefaults(t *testing.T) {
 		Host: "smtp.example.com", Port: 587, TLS: "starttls",
 		ConnectTimeout: 10 * time.Second, SendTimeout: 15 * time.Second,
 	}, cfg.SMTP)
+	assert.Empty(t, cfg.TrustedProxyPrefixes(), "no proxy is trusted by default")
+}
+
+func TestNewParsesTrustedProxies(t *testing.T) {
+	setValidEnv(t)
+	t.Setenv("TRUSTED_PROXIES", "127.0.0.1/32,::1/128,172.16.0.0/12")
+
+	cfg, err := New()
+	require.NoError(t, err)
+	assert.Equal(t, []netip.Prefix{
+		netip.MustParsePrefix("127.0.0.1/32"), netip.MustParsePrefix("::1/128"), netip.MustParsePrefix("172.16.0.0/12"),
+	}, cfg.TrustedProxyPrefixes())
 }
 
 func TestNewRejectsInvalidConfig(t *testing.T) {
@@ -50,6 +63,8 @@ func TestNewRejectsInvalidConfig(t *testing.T) {
 		{"zero connect timeout", map[string]string{"SMTP_CONNECT_TIMEOUT": "0s"}, "SMTP_CONNECT_TIMEOUT"},
 		{"zero send timeout", map[string]string{"SMTP_SEND_TIMEOUT": "0s"}, "SMTP_SEND_TIMEOUT"},
 		{"send timeout longer than a tenth of the lease", map[string]string{"SMTP_SEND_TIMEOUT": "30s"}, "SMTP_SEND_TIMEOUT"},
+		{"trusted proxy that is not a CIDR", map[string]string{"TRUSTED_PROXIES": "10.0.0.1"}, "TRUSTED_PROXIES"},
+		{"trusted proxy with host bits", map[string]string{"TRUSTED_PROXIES": "10.0.0.1/8"}, "TRUSTED_PROXIES"},
 		{"missing sender", map[string]string{"MAIL_FROM": ""}, "MAIL_FROM"},
 		{"sender without address", map[string]string{"MAIL_FROM": "go-next-saas"}, "MAIL_FROM"},
 	}

@@ -7,14 +7,17 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/agusheryanto182/go-next-saas/api/config"
 	"github.com/agusheryanto182/go-next-saas/api/internal/controller/restapi"
 	"github.com/agusheryanto182/go-next-saas/api/internal/repo"
 	"github.com/agusheryanto182/go-next-saas/api/internal/repo/persistent"
 	"github.com/agusheryanto182/go-next-saas/api/internal/repo/persistent/outbox"
+	sessionrepo "github.com/agusheryanto182/go-next-saas/api/internal/repo/persistent/session"
 	webmail "github.com/agusheryanto182/go-next-saas/api/internal/repo/webapi/mail"
 	"github.com/agusheryanto182/go-next-saas/api/internal/usecase/mail"
+	"github.com/agusheryanto182/go-next-saas/api/internal/usecase/session"
 	"github.com/agusheryanto182/go-next-saas/api/pkg/httpserver"
 	"github.com/agusheryanto182/go-next-saas/api/pkg/otel"
 	"github.com/agusheryanto182/go-next-saas/api/pkg/password"
@@ -58,7 +61,12 @@ func Run(ctx context.Context, cfg config.Config, log *slog.Logger) (err error) {
 		return err
 	}
 	tx := persistent.NewTransactor(pool)
-	worker := newMailWorker(mail.New(tx, outbox.New(), mailer, log), log)
+	mails := mail.New(tx, outbox.New(), mailer, log)
+	sessions := session.New(tx, sessionrepo.New(), time.Now, log)
+	worker := newWorker(mails, log,
+		maintenanceStep{name: "email outbox", run: mails.Maintain},
+		maintenanceStep{name: "sessions", run: sessions.Purge},
+	)
 
 	// The worker stops before the pool closes (defers run in reverse), after its email in flight.
 	workerCtx, stopWorker := context.WithCancel(ctx)
@@ -72,7 +80,9 @@ func Run(ctx context.Context, cfg config.Config, log *slog.Logger) (err error) {
 		<-workerDone
 	}()
 
-	router, err := restapi.NewRouter(restapi.Deps{Log: log, DB: pool})
+	router, err := restapi.NewRouter(restapi.Deps{
+		Log: log, DB: pool, Sessions: sessions, TrustedProxies: cfg.TrustedProxyPrefixes(),
+	})
 	if err != nil {
 		return err
 	}

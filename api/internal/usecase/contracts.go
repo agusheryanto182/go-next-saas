@@ -24,6 +24,25 @@ type (
 		Maintain(ctx context.Context) error
 	}
 
+	// Session manages server-side sessions (ADR 0006). A token is 32 random bytes, base64url without
+	// padding; only its SHA-256 is stored, and it never appears in logs or spans.
+	Session interface {
+		// Create starts a session for the user and returns its token (the cookie value) and the
+		// session. ip may be empty; userAgent is cut to entity.SessionUserAgentMaxRunes.
+		Create(ctx context.Context, userID, ip, userAgent string) (string, entity.Session, error)
+		// Authenticate returns the active session for token and its user, and extends the idle
+		// expiry at most once per entity.SessionRefreshInterval. A malformed, unknown, revoked or
+		// expired token returns entity.ErrSessionNotFound.
+		Authenticate(ctx context.Context, token string) (entity.Session, entity.User, error)
+		// Revoke ends the user's session sessionID if it is active, else returns
+		// entity.ErrSessionNotFound.
+		Revoke(ctx context.Context, userID, sessionID string, reason entity.RevokeReason) error
+		// RevokeOthers ends every active session of the user except exceptSessionID.
+		RevokeOthers(ctx context.Context, userID, exceptSessionID string, reason entity.RevokeReason) error
+		// Purge deletes sessions that ended more than entity.SessionRetention ago (daily maintenance).
+		Purge(ctx context.Context) error
+	}
+
 	// Organization creates organizations. The development seed and `app create-org` use it (ADR 0012).
 	Organization interface {
 		// Create creates the organization, its owner and its other members in one unit of work. A user
