@@ -221,6 +221,21 @@ func (mr *MockOutboxRepoMockRecorder) MarkSent(ctx, id any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MarkSent", reflect.TypeOf((*MockOutboxRepo)(nil).MarkSent), ctx, id)
 }
 
+// PurgeFailed mocks base method.
+func (m *MockOutboxRepo) PurgeFailed(ctx context.Context, createdBefore time.Time) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PurgeFailed", ctx, createdBefore)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// PurgeFailed indicates an expected call of PurgeFailed.
+func (mr *MockOutboxRepoMockRecorder) PurgeFailed(ctx, createdBefore any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PurgeFailed", reflect.TypeOf((*MockOutboxRepo)(nil).PurgeFailed), ctx, createdBefore)
+}
+
 // PurgeSent mocks base method.
 func (m *MockOutboxRepo) PurgeSent(ctx context.Context, sentBefore time.Time) (int64, error) {
 	m.ctrl.T.Helper()

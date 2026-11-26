@@ -163,3 +163,16 @@ func (r *Repo) PurgeSent(ctx context.Context, sentBefore time.Time) (int64, erro
 	}
 	return n, nil
 }
+
+// PurgeFailed -.
+func (r *Repo) PurgeFailed(ctx context.Context, createdBefore time.Time) (int64, error) {
+	q, err := persistent.Queries(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("OutboxRepo - PurgeFailed - persistent.Queries: %w", err)
+	}
+	n, err := q.PurgeFailedEmails(ctx, createdBefore)
+	if err != nil {
+		return 0, fmt.Errorf("OutboxRepo - PurgeFailed - q.PurgeFailedEmails: %w", err)
+	}
+	return n, nil
+}

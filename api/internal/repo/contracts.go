@@ -67,6 +67,8 @@ type (
 		ClearFailedPayloads(ctx context.Context, createdBefore time.Time) (int64, error)
 		// PurgeSent deletes emails sent before sentBefore.
 		PurgeSent(ctx context.Context, sentBefore time.Time) (int64, error)
+		// PurgeFailed deletes failed emails created before createdBefore.
+		PurgeFailed(ctx context.Context, createdBefore time.Time) (int64, error)
 	}
 
 	// Mailer renders an email's template and sends it (repo/webapi/mail). It does no I/O on the

@@ -336,4 +336,30 @@ func TestOutbox(t *testing.T) {
 			return nil
 		})
 	})
+
+	t.Run("maintenance purges failed rows after 30 days", func(t *testing.T) {
+		reset(t)
+		rows := env.enqueue(ctx, t, 4)
+		failedOld, failedRecent, sent := rows[0], rows[1], rows[2] // rows[3] stays pending
+		// All but the recent failed row are 31 days old: only the status keeps sent and pending rows.
+		env.exec(ctx, t, "UPDATE outbox_emails SET created_at = now() - interval '31 days' WHERE id <> $1", failedRecent)
+		env.exec(ctx, t, "UPDATE outbox_emails SET status = 'failed', payload = NULL WHERE id = ANY($1::uuid[])",
+			[]string{failedOld, failedRecent})
+		env.exec(ctx, t, "UPDATE outbox_emails SET status = 'sent', sent_at = now(), payload = NULL WHERE id = $1", sent)
+
+		env.do(ctx, t, func(ctx context.Context) error {
+			purged, err := env.outbox.PurgeFailed(ctx, time.Now().Add(-30*24*time.Hour))
+			require.NoError(t, err)
+			assert.Equal(t, int64(1), purged)
+			assert.Equal(t, 1, count(ctx, t,
+				"SELECT count(*) FROM outbox_emails WHERE status = 'failed' AND created_at > now() - interval '1 day'"),
+				"the recent failed row is kept")
+			assert.Equal(t, 0, count(ctx, t,
+				"SELECT count(*) FROM outbox_emails WHERE status = 'failed' AND created_at < now() - interval '30 days'"),
+				"the old failed row is deleted")
+			assert.Equal(t, 1, count(ctx, t, "SELECT count(*) FROM outbox_emails WHERE status = 'sent'"))
+			assert.Equal(t, 1, count(ctx, t, "SELECT count(*) FROM outbox_emails WHERE status = 'pending'"))
+			return nil
+		})
+	})
 }

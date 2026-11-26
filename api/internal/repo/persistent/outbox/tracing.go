@@ -75,3 +75,11 @@ func (r *tracedRepo) PurgeSent(ctx context.Context, sentBefore time.Time) (int64
 	otel.EndSpan(span, err)
 	return n, err
 }
+
+func (r *tracedRepo) PurgeFailed(ctx context.Context, createdBefore time.Time) (int64, error) {
+	ctx, span := otel.StartSpan(ctx, _tracerName, "OutboxRepo.PurgeFailed")
+	n, err := r.next.PurgeFailed(ctx, createdBefore)
+	span.SetAttributes(attribute.Int64("email.purged", n))
+	otel.EndSpan(span, err)
+	return n, err
+}

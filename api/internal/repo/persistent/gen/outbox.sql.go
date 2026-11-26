@@ -125,6 +125,20 @@ func (q *Queries) MarkEmailSent(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const purgeFailedEmails = `-- name: PurgeFailedEmails :execrows
+DELETE FROM outbox_emails
+WHERE status = 'failed' AND created_at < $1::timestamptz
+`
+
+// Failed rows keep the recipient (personal data), so they follow the same retention as sent ones.
+func (q *Queries) PurgeFailedEmails(ctx context.Context, createdBefore time.Time) (int64, error) {
+	result, err := q.db.Exec(ctx, purgeFailedEmails, createdBefore)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const purgeSentEmails = `-- name: PurgeSentEmails :execrows
 DELETE FROM outbox_emails
 WHERE status = 'sent' AND sent_at < $1::timestamptz
