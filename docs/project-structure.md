@@ -154,7 +154,8 @@ Tests sit next to the code as `*.test.ts(x)`.
 | `hooks/format.sh` | after an agent edits a file: gofumpt for Go, Prettier for web files |
 | `hooks/check-on-stop.sh` | before an agent finishes: `make check-fast` for the areas it changed; failures send it back to work |
 | `agents/` | role agents: `go-implementer`, `web-implementer`, `reviewer` (read-only), `verifier` |
-| `skills/` | `/slice` (issue → pull request), `/verify` (checks), `/spec` (contract change), `/adr` (decision record) |
+| `skills/` | `/slice` (issue → pull request with a Review guide), `/verify` (checks), `/spec` (contract change), `/adr` (decision record), `/orchestrate` (one pass of dispatch, gates, fix rounds and report, ADR 0019), `/review-strict` (security checklist for `review:strict` pull requests) |
+| `scripts/agent-state.py` | state of agent work from GitHub and `claude agents`, and the dispatch plan; read by `/orchestrate` |
 
 Local-only and gitignored: `settings.local.json`, `worktrees/` (agent view worktrees).
 
