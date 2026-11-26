@@ -153,6 +153,19 @@ func TestSessionAuthenticate(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("a failed refresh does not fail the request", func(t *testing.T) {
+		t.Parallel()
+		uc, d := newSession(t)
+		want := seenAgo(2 * time.Hour)
+		d.sessions.EXPECT().GetActiveByTokenHash(gomock.Any(), gomock.Any(), gomock.Any()).Return(want, user, nil)
+		d.sessions.EXPECT().Touch(gomock.Any(), "s1", sessionNow()).Return(false, errDB)
+
+		s, u, err := uc.Authenticate(t.Context(), token)
+		require.NoError(t, err)
+		assert.Equal(t, want, s)
+		assert.Equal(t, user, u)
+	})
+
 	t.Run("an unknown, revoked or expired session is not found", func(t *testing.T) {
 		t.Parallel()
 		uc, d := newSession(t)

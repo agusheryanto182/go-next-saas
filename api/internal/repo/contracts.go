@@ -95,8 +95,8 @@ type (
 		// no PasswordHash.
 		GetActiveByTokenHash(ctx context.Context, tokenHash []byte, now time.Time) (entity.Session, entity.User, error)
 		// Touch sets the last use to now and the idle expiry to now + entity.SessionIdleTimeout,
-		// capped at the absolute expiry, if the session is not revoked and was last seen more than
-		// entity.SessionRefreshInterval before now. It reports whether it wrote.
+		// capped at the absolute expiry, if the session is active at now and was last seen more
+		// than entity.SessionRefreshInterval before now. It reports whether it wrote.
 		Touch(ctx context.Context, id string, now time.Time) (bool, error)
 		// Revoke ends the user's session id if it is active at now, else returns
 		// entity.ErrSessionNotFound.

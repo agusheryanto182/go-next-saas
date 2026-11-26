@@ -183,6 +183,8 @@ SET last_seen_at = $1,
     idle_expires_at = least($2::timestamptz, absolute_expires_at)
 WHERE id = $3
   AND revoked_at IS NULL
+  AND idle_expires_at > $1
+  AND absolute_expires_at > $1
   AND last_seen_at < $4::timestamptz
 `
 
@@ -193,8 +195,8 @@ type TouchSessionParams struct {
 	RefreshBefore time.Time
 }
 
-// Extends the idle expiry, capped at the absolute one. The last_seen_at condition makes concurrent
-// requests write at most once per refresh interval.
+// Extends the idle expiry of an active session, capped at the absolute one. The last_seen_at
+// condition makes concurrent requests write at most once per refresh interval.
 func (q *Queries) TouchSession(ctx context.Context, arg TouchSessionParams) (int64, error) {
 	result, err := q.db.Exec(ctx, touchSession,
 		arg.Now,

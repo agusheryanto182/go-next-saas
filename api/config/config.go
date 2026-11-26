@@ -140,13 +140,21 @@ func (s SMTP) validate() error {
 }
 
 // validateCIDR accepts a network in CIDR notation without host bits, like 10.0.0.0/8 or ::1/128.
+// It refuses networks that would silently do the wrong thing: one that trusts every address (/0),
+// which lets any client forge its IP, and an IPv4-mapped IPv6 network, which never matches because
+// clients are compared as plain IPv4.
 func validateCIDR(raw string) error {
 	p, err := netip.ParsePrefix(raw)
 	if err != nil {
 		return fmt.Errorf("%q: %w: use CIDR notation, like 10.0.0.0/8 or ::1/128", raw, ErrInvalid)
 	}
-	if p != p.Masked() {
+	switch {
+	case p != p.Masked():
 		return fmt.Errorf("%q: %w: host bits are set, did you mean %s?", raw, ErrInvalid, p.Masked())
+	case p.Bits() == 0:
+		return fmt.Errorf("%q: %w: trusting every address lets any client forge its IP", raw, ErrInvalid)
+	case p.Addr().Is4In6():
+		return fmt.Errorf("%q: %w: write IPv4 networks as IPv4, like 10.0.0.0/8", raw, ErrInvalid)
 	}
 	return nil
 }

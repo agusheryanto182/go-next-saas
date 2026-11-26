@@ -63,14 +63,7 @@ func (uc *UseCase) Authenticate(ctx context.Context, token string) (entity.Sessi
 	)
 	if err := uc.tx.InScope(ctx, repo.Scope{}, func(ctx context.Context) error {
 		var err error
-		if s, u, err = uc.sessions.GetActiveByTokenHash(ctx, hash, now); err != nil {
-			return err
-		}
-		if !s.NeedsRefresh(now) {
-			return nil
-		}
-		// A concurrent request may have refreshed it already; then this writes nothing.
-		_, err = uc.sessions.Touch(ctx, s.ID, now)
+		s, u, err = uc.sessions.GetActiveByTokenHash(ctx, hash, now)
 		return err
 	}); err != nil {
 		if errors.Is(err, entity.ErrSessionNotFound) {
@@ -78,7 +71,23 @@ func (uc *UseCase) Authenticate(ctx context.Context, token string) (entity.Sessi
 		}
 		return entity.Session{}, entity.User{}, fmt.Errorf("SessionUseCase - Authenticate: %w", err)
 	}
+	if s.NeedsRefresh(now) {
+		uc.refresh(ctx, s.ID, now)
+	}
 	return s, u, nil
+}
+
+// refresh extends the idle expiry in its own unit of work. It is best effort: the session is valid
+// either way, and a failed write (lock or statement timeout) must not fail the request; the next
+// request tries again.
+func (uc *UseCase) refresh(ctx context.Context, sessionID string, now time.Time) {
+	if err := uc.tx.InScope(ctx, repo.Scope{}, func(ctx context.Context) error {
+		// A concurrent request may have refreshed it already; then this writes nothing.
+		_, err := uc.sessions.Touch(ctx, sessionID, now)
+		return err
+	}); err != nil {
+		uc.log.WarnContext(ctx, "session refresh failed", slog.String("session_id", sessionID), slog.Any("error", err))
+	}
 }
 
 // Revoke -.

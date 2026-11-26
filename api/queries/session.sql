@@ -19,13 +19,15 @@ WHERE s.token_hash = @token_hash
   AND s.absolute_expires_at > @now;
 
 -- name: TouchSession :execrows
--- Extends the idle expiry, capped at the absolute one. The last_seen_at condition makes concurrent
--- requests write at most once per refresh interval.
+-- Extends the idle expiry of an active session, capped at the absolute one. The last_seen_at
+-- condition makes concurrent requests write at most once per refresh interval.
 UPDATE sessions
 SET last_seen_at = @now,
     idle_expires_at = least(@idle_expires_at::timestamptz, absolute_expires_at)
 WHERE id = @id
   AND revoked_at IS NULL
+  AND idle_expires_at > @now
+  AND absolute_expires_at > @now
   AND last_seen_at < @refresh_before::timestamptz;
 
 -- name: RevokeSession :execrows

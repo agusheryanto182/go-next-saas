@@ -65,6 +65,9 @@ func TestNewRejectsInvalidConfig(t *testing.T) {
 		{"send timeout longer than a tenth of the lease", map[string]string{"SMTP_SEND_TIMEOUT": "30s"}, "SMTP_SEND_TIMEOUT"},
 		{"trusted proxy that is not a CIDR", map[string]string{"TRUSTED_PROXIES": "10.0.0.1"}, "TRUSTED_PROXIES"},
 		{"trusted proxy with host bits", map[string]string{"TRUSTED_PROXIES": "10.0.0.1/8"}, "TRUSTED_PROXIES"},
+		{"trusting every IPv4 address", map[string]string{"TRUSTED_PROXIES": "0.0.0.0/0"}, "TRUSTED_PROXIES"},
+		{"trusting every IPv6 address", map[string]string{"TRUSTED_PROXIES": "::/0"}, "TRUSTED_PROXIES"},
+		{"IPv4-mapped trusted proxy", map[string]string{"TRUSTED_PROXIES": "::ffff:10.0.0.0/104"}, "TRUSTED_PROXIES"},
 		{"missing sender", map[string]string{"MAIL_FROM": ""}, "MAIL_FROM"},
 		{"sender without address", map[string]string{"MAIL_FROM": "go-next-saas"}, "MAIL_FROM"},
 	}

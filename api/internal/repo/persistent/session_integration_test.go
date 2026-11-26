@@ -173,13 +173,18 @@ func TestSessions(t *testing.T) {
 		assert.Equal(t, s.AbsoluteExpiresAt, got.IdleExpiresAt)
 	})
 
-	t.Run("touch leaves a revoked session alone", func(t *testing.T) {
+	t.Run("touch leaves revoked and expired sessions alone", func(t *testing.T) {
 		userID := env.newUser(ctx, t)
 		s, _ := env.store(ctx, t, userID, start)
 		env.do(ctx, t, func(ctx context.Context) error {
 			return env.sessions.Revoke(ctx, userID, s.ID, entity.RevokeLogout, start.Add(time.Minute))
 		})
-		assert.False(t, env.touch(ctx, t, s.ID, start.Add(2*time.Hour)))
+		assert.False(t, env.touch(ctx, t, s.ID, start.Add(2*time.Hour)), "revoked")
+
+		idle, idleHash := env.store(ctx, t, userID, start)
+		assert.False(t, env.touch(ctx, t, idle.ID, start.Add(7*day)), "idle-expired: not revived")
+		_, _, err := env.lookup(ctx, t, idleHash, start.Add(7*day))
+		require.ErrorIs(t, err, entity.ErrSessionNotFound)
 	})
 
 	t.Run("revoke ends only an active session of that user", func(t *testing.T) {
