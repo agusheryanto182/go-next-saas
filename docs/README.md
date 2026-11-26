@@ -33,5 +33,6 @@ Database, authentication flows, testing and deployment docs are added with the m
 | [0016](decisions/0016-pwa-shell-only.md) | PWA: cache the app shell, never the API |
 | [0017](decisions/0017-agentic-workflow.md) | Agentic workflow on stable Claude Code features |
 | [0018](decisions/0018-nextjs-app-router.md) | Next.js App Router with the API as the only backend |
+| [0019](decisions/0019-session-independent-orchestration.md) | Session-independent orchestration of agent work |
 
 New ADRs copy [decisions/template.md](decisions/template.md).

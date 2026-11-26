@@ -25,7 +25,15 @@
       "Bash(gh pr view:*)",
       "Bash(gh pr list:*)",
       "Bash(gh pr diff:*)",
-      "Bash(gh pr checks:*)"
+      "Bash(gh pr checks:*)",
+      "Bash(gh pr comment:*)",
+      "Bash(gh pr ready:*)",
+      "Bash(gh issue comment:*)",
+      "Bash(gh issue edit:*)",
+      "Bash(gh run view:*)",
+      "Bash(python3 -I .claude/scripts/agent-state.py:*)",
+      "Bash(claude agents --json:*)",
+      "Bash(claude logs:*)"
     ],
     "deny": [
       "Read(./.env)",

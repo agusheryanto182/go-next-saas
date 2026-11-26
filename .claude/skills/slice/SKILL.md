@@ -15,6 +15,21 @@ Input: an issue number.
 6. Ask the `reviewer` agent to review the branch. Fix important findings.
 7. Commit with conventional messages, push the branch, and open a **draft** pull request:
    - title in conventional-commit form (it becomes the squash commit),
-   - body: `Closes #<n>`, what changed, how it was tested, open questions,
+   - body: `Closes #<n>`, what changed, how it was tested, a **Review guide** (below), open questions,
    - metrics: CI or check failures before green, and anything a human had to correct.
 8. Report the pull request URL.
+
+## Review guide
+The developer reviews by risk, not line by line. Write the guide from what you know of the code, scaled to the risk:
+
+- **Low risk** (docs, chore, tooling, dependencies): one line, `Read: <file>`.
+- **Feature:**
+  - **Read in this order:** 2 to 4 `file:line-range` entries with what to check there: interfaces and contracts, migrations, the core logic.
+  - **Criteria → tests:** every acceptance criterion with the test name that proves it.
+  - **Skip:** generated code, mocks and fixtures.
+- **New or changed endpoint or flow:** add a Mermaid `sequenceDiagram` of the request through controller → use case → repositories, with the error branches.
+- **`review:strict` issues** (auth, sessions, passwords, tenancy, data migrations): also name what an attacker would try and where the code stops it.
+
+When a fix round changes code the guide points to, update the guide in the pull request body (`gh pr edit <n> --body-file …`).
+
+Fix rounds from `/orchestrate` arrive in this same session: fix on the same branch, run `/verify`, push normally (never force-push), then say what changed.

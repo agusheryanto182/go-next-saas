@@ -1,6 +1,6 @@
 # 0017. Agentic workflow on stable Claude Code features
 
-- **Status:** Accepted
+- **Status:** Accepted; dispatching and coordinating Level 2 work superseded by [0019](0019-session-independent-orchestration.md)
 - **Date:** 2026-11-23
 
 ## Context
